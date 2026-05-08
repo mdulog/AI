@@ -88,7 +88,7 @@ For `mixed` projects, pass an explicit output root to scope the run to one app, 
 
 ## How it works
 
-The orchestrator runs eight ordered steps, delegating the analytical work to six specialised subagents. Each step must complete before the next begins — the workflow is phase-based, not parallel.
+The orchestrator runs a 12-step pipeline (STEP 0 through STEP 8, including intermediate steps 0.4, 0.5, and 0.6), delegating the analytical work to six specialised subagents. Each step must complete before the next begins — the workflow is phase-based, not parallel.
 
 ```
 STEP 0   — Pre-flight: detect project type, verify agents, migrate CLAUDE.md, create folders
