@@ -267,6 +267,30 @@ Tables are used extensively across the orchestrator and agent prompts (tool perm
 
 Generated convention docs in this project use explicit `### Required:` and `### Observed:` H3 prefixes to distinguish enforced rules from recurring patterns. New convention sections should follow this labeling.
 
+### Required: Cross-File Citations Use Section Anchors, Not Line Numbers
+
+When citing another file from a long-lived doc (anything under `docs/architecture/`, `docs/conventions/`, `docs/specs/`, `docs/reference/`, or `docs/architecture/decisions/`), use a section-name anchor rather than a line number.
+
+✅ Acceptable:
+
+- `orchestrator § STEP 5`
+- `CLAUDE.md § Model and Effort Policy`
+- `Agents/spec-auditor.md (variable-binding paragraph)`
+- the `JUDGE_MODEL` constant near the top of `scripts/smoke_grade.py`
+
+❌ Forbidden:
+
+- `orchestrator line 464`
+- `CLAUDE.md lines 60–91`
+- `Agents/spec-auditor.md line 19`
+- `scripts/smoke_grade.py line 38`
+
+**Why:** line numbers drift on every insertion or deletion in the cited file, silently invalidating the reference. Section names change only by deliberate rename, which is exactly when the citing reference *should* break loudly so a writer notices.
+
+**When no section header exists** (e.g., an agent file with only frontmatter and a final `## Assumptions`, or a short script), use a descriptive anchor in parentheses such as `(frontmatter)`, `(variable-binding paragraph)`, or `(<symbol-name> constant)` rather than falling back to a line number.
+
+**Exception:** code citations inside source files under `scripts/` or other implementation directories may reference line numbers when needed for review context — those references are usually short-lived. The rule above applies specifically to long-lived docs under `docs/`.
+
 ## Assumptions
 
 - The `# accepted-arguments` comment in the orchestrator is parsed as a YAML comment by the runtime — not as a structured field. Its functional effect when uncommented is unverified.
