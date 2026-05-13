@@ -1,228 +1,300 @@
 # Coding Conventions
 
-This project is a pure-markdown Claude Code skill. There is no compiled code, no build system, and no runtime dependencies beyond the Claude Code environment. "Code" in this context means YAML frontmatter and structured markdown prompts that define orchestrator and agent behavior.
+This project is a pure-markdown Claude Code skill. There is no compiled code, no build system, no test runner, and no runtime dependencies beyond the Claude Code harness. "Code" here means YAML frontmatter and structured markdown prompts that the runtime interprets at invocation time.
+
+These conventions distinguish **required patterns** (declared or enforced by the orchestrator/agent files themselves) from **observed conventions** (recurring across files but not formally enforced).
 
 ## YAML Frontmatter
 
-### Required: Command Files (Orchestrator)
+### Required: Orchestrator (Command File) Frontmatter
 
-Command files (deployed to `.claude/commands/`) use these frontmatter keys:
+The orchestrator command file (`generate-knowledge-base/generate-knowledge-base.md`) declares exactly these top-of-file keys:
 
 | Key | Required | Purpose |
 |---|---|---|
-| `description` | Yes | One-line summary shown in the Claude Code command list |
-| `allowed-tools` | Yes | Array of Claude Code tools this command may use |
-| `model` | Yes | Model identifier for the orchestrator thread |
+| `description` | Yes | One-line summary shown in Claude Code's command list |
+| `allowed-tools` | Yes | Array of Claude Code tools the command may use |
+| `model` | Yes | Generic model alias for the orchestrator thread |
+| `# accepted-arguments` | No | A commented-out documentation hint of the argument schema; not an active frontmatter field |
 
-The `accepted-arguments` key appears commented out in the orchestrator (line 4: `# accepted-arguments: [output-root-folder] [mode=full|light|force]`). This likely serves as inline documentation of the accepted argument schema rather than an active frontmatter declaration. Its functional effect when uncommented is unverified.
+Verbatim shape (frontmatter of `generate-knowledge-base/generate-knowledge-base.md`):
 
-**Example** (from `generate-knowledge-base.md`):
 ```yaml
 ---
 description: Generates and maintains a project knowledge base for an existing software project
 allowed-tools: [Read, Write, Bash, Agent]
-model: claude-opus-4-6
+# accepted-arguments: [output-root-folder] [mode=full|light|force]
+model: sonnet
 ---
 ```
 
-### Required: Agent Files (Subagents)
+The `# accepted-arguments` line is a comment — it is for human readers and is not parsed by the runtime.
 
-Agent files (deployed to `.claude/agents/`) use these frontmatter keys:
+### Required: Agent (Subagent) Frontmatter
+
+Every agent file under `generate-knowledge-base/Agents/` declares exactly these four keys, in this order:
 
 | Key | Required | Purpose |
 |---|---|---|
-| `name` | Yes | Identifier used by the orchestrator to invoke the agent |
+| `name` | Yes | Identifier the orchestrator uses to invoke the agent; must equal the filename without extension |
 | `description` | Yes | One-line summary shown in agent listings and used by the orchestrator for identification |
-| `tools` | Yes | Array of Claude Code tools this agent is permitted to use |
+| `tools` | Yes | Array of Claude Code tools the agent is permitted to use |
+| `model` | Yes | Generic model alias for that agent's thread (single source of truth — see Model and Effort Policy) |
 
-Agents do not declare a `model` key. Model selection is inherited from the orchestrator or follows Claude Code defaults.
+Verbatim shape (frontmatter of `generate-knowledge-base/Agents/spec-brainstormer.md`):
 
-**Example** (from `spec-brainstormer.md`):
 ```yaml
 ---
 name: spec-brainstormer
 description: Analyzes the repo and CLAUDE.md to understand purpose, layers, patterns, services, and integration points.
 tools: [Read, Bash, Glob, Grep]
+model: opus
 ---
 ```
 
-### Observed: Key Name Difference Between Commands and Agents
+All six agent files use this identical four-field shape (verified against `spec-brainstormer.md`, `spec-writer.md`, `conventions-writer.md`, `legacy-doc-consolidator.md`, `adr-writer.md`, `spec-auditor.md`).
 
-Commands use `allowed-tools` while agents use `tools` for the same purpose (declaring permitted Claude Code tools). This appears to be a Claude Code platform convention rather than a project choice. Both use YAML array syntax with the same tool names.
+### Required: Key-Name Difference Between Commands and Agents
+
+Commands use `allowed-tools`; agents use `tools`. The two keys serve the same purpose (declaring permitted Claude Code tools) but are not interchangeable — this is a Claude Code platform convention. Both accept a YAML inline array using the same tool names.
+
+## Model and Effort Policy
+
+The skill operates on two declarative axes — **model** (Sonnet / Opus / Haiku) and **reasoning effort** (low / medium / high / max). The full policy lives in `CLAUDE.md` § Model and Effort Policy and the orchestrator's § Model and effort policy; the rules below are quoted/restated verbatim where applicable.
+
+### Required: Model Rule
+
+1. **Sonnet** is the default.
+2. **Opus** is used only where escalation is justified by complexity, ambiguity, or compounding output quality.
+3. **Haiku** is reserved for narrow mechanical chores — no current subagent qualifies.
+
+### Required: Effort Ladder
+
+1. **Sonnet + medium** — default for orchestration and standard generation.
+2. **Sonnet + high** — try this before escalating model.
+3. **Opus + high** — truly hard tasks (current Opus agents sit here).
+4. **Opus + max** — rare, highest-stakes reasoning; no current step qualifies.
+5. **Haiku + low** — narrow mechanical chores; no current step qualifies.
+
+### Required: Sources of Truth
+
+- **Per-agent model**: declared once in the agent's frontmatter `model:` field. This is the single source of truth. The orchestrator never overrides `model` on an `Agent` invocation (orchestrator § Model and effort policy: "Do not add per-step `model` overrides on `Agent` invocations").
+- **Per-step effort**: set by the orchestrator via `/effort <level>` immediately before each `Agent` dispatch.
+
+### Required: Generic Aliases Only — No Version Pins
+
+Use generic aliases (`opus`, `sonnet`, `haiku`, `inherit`). **Never pin a specific version** (e.g. `claude-opus-4-6`, `claude-opus-4-7`). Pinned versions miss model improvements over time. This rule is stated in `CLAUDE.md` § Model and Effort Policy and the orchestrator's § Model and effort policy.
+
+**Dev-tooling carve-out:** `scripts/smoke_grade.py` hardcodes `JUDGE_MODEL = "claude-opus-4-7"` (see the `JUDGE_MODEL` constant near the top of the script). The Anthropic Python SDK does not resolve generic aliases — it requires an exact model ID — so dev tooling that calls the SDK directly is exempt from the no-pins rule. This carve-out is codified in `CLAUDE.md` § Model and Effort Policy. Bump the pin on model launches; do NOT propagate the pinned-version pattern into orchestrator or agent frontmatter, which the harness DOES alias-resolve.
+
+### Required: Effort Schedule
+
+The orchestrator issues these `/effort` directives (§ Model and effort policy):
+
+- `/effort medium` at session start; remains `medium` for STEPS 0, 0.4, 0.5, 0.6, 2, 3, 4, 7, 8.
+- `/effort high` immediately before invoking `spec-brainstormer` (STEP 1), `adr-writer` (STEP 5), and `spec-auditor` (STEP 6); reverted to `medium` after each dispatch.
+- If `/effort` is unavailable in the harness, the orchestrator continues and behaves as if the requested level were applied.
+
+A new subagent added without a `model:` field inherits `sonnet` from the orchestrator — a safe default per `CLAUDE.md` § Model and Effort Policy.
+
+## Tool-Set Boundaries
+
+### Required: Tool Sets Enforce Write Boundaries
+
+Agent boundaries are enforced at the tool-permission level, not in prose:
+
+| Component | Tool set | Can write files? | Can dispatch agents? |
+|---|---|---|---|
+| Orchestrator | `[Read, Write, Bash, Agent]` | Yes | Yes |
+| `spec-brainstormer` | `[Read, Bash, Glob, Grep]` | **No** | No |
+| `spec-writer` | `[Read, Write, Bash, Grep]` | Yes | No |
+| `conventions-writer` | `[Read, Write, Bash, Glob, Grep]` | Yes | No |
+| `legacy-doc-consolidator` | `[Read, Write, Bash, Glob, Grep]` | Yes | No |
+| `adr-writer` | `[Read, Write, Bash, Glob]` | Yes | No |
+| `spec-auditor` | `[Read, Bash, Glob, Grep]` | **No** | No |
+
+Two consequences are load-bearing:
+
+- **Read-only agents lack `Write`.** `spec-brainstormer` and `spec-auditor` cannot modify any file — the harness denies the call. Prose rules (e.g. "Never create or modify any files") reinforce but do not implement the boundary.
+- **Only the orchestrator declares `Agent`.** Subagents cannot dispatch other subagents; only the supervisor can.
+
+### Observed: Write-Path Scoping by Prose
+
+`Write` itself accepts any path. Restricting writes to specific subtrees (e.g. "spec-writer only writes under `OUTPUT_ROOT/architecture/` and `OUTPUT_ROOT/reference/`") is enforced by the orchestrator's dispatch prompt and the agent's own instructions — not by a path-level harness primitive. Adhere to the prose scoping in every agent file when adding new write targets.
 
 ## Markdown Prompt Structure
 
-### Required: Prompt Sections
+### Required: Common Prompt Skeleton
 
-Every agent prompt follows a consistent top-level structure. The exact section names vary, but these categories are always present in the same order:
+Every agent file follows the same top-level skeleton (verified across all six agents):
 
-1. **Role declaration** -- A single opening sentence: "You are the [role] for this project."
-2. **Inputs section** -- A bullet list of what the agent receives (CLAUDE.md, codebase, orchestrator variables, prior reports).
-3. **Variable binding** -- A paragraph stating that `PROJECT_TYPE` and `OUTPUT_ROOT` are passed by the orchestrator and must be treated as ground truth.
-4. **Job description** -- "Your job:" followed by a bullet list of responsibilities.
-5. **Rules** -- Constraints, safety boundaries, and behavioral requirements.
-6. **Output format** -- What the agent must return or produce, including file paths and structural requirements.
+1. **Role declaration** — single opening sentence: "You are the [role] agent for this project."
+2. **Inputs section** — bullet list of what the agent receives (`CLAUDE.md`, codebase, orchestrator variables, prior reports).
+3. **Variable binding paragraph** — states that `PROJECT_TYPE` and `OUTPUT_ROOT` are passed by the orchestrator and must be treated as ground truth.
+4. **Job description** — `Your job:` followed by a bullet list of responsibilities.
+5. **Rules** — constraints, safety boundaries, and behavioral requirements.
+6. **Output format / report requirements** — what the agent must return or produce.
+7. **`## Assumptions`** — final section in the agent file (where applicable).
 
-**Example pattern** (common across all 6 agents):
-```markdown
-You are the [role] agent for this project.
+### Required: Variable-Binding Phrasing
 
-Inputs:
-- `CLAUDE.md`
-- The project codebase
-- PROJECT_TYPE and OUTPUT_ROOT from the orchestrator
+Every agent prompt contains this exact instruction (verbatim):
 
-Variables (`PROJECT_TYPE` and `OUTPUT_ROOT`) are passed by the orchestrator in the invocation prompt.
-Treat them as ground truth; do not attempt to re-derive them.
+> Variables (`PROJECT_TYPE` and `OUTPUT_ROOT`) are passed by the orchestrator in the invocation prompt. Treat them as ground truth; do not attempt to re-derive them.
 
-Your job:
-- [responsibility 1]
-- [responsibility 2]
+Two agents are exceptions: `legacy-doc-consolidator` and `spec-auditor` both receive only `OUTPUT_ROOT` (not `PROJECT_TYPE`). Their work is taxonomy- and audit-focused rather than project-type-sensitive — verified against the variable-binding paragraph in each of `Agents/legacy-doc-consolidator.md` and `Agents/spec-auditor.md`.
 
-Rules:
-- [constraint 1]
-- [constraint 2]
+### Required: Generated Documents End with `## Assumptions`
 
-[Output format or report requirements]
-```
+Every generated documentation file (architecture, conventions, specs, ADRs, reference) must end with an `## Assumptions` section listing inferences and unverifiable claims. This requirement appears in the orchestrator (STEPS 2, 3, 4) and in each writing agent's prompt.
 
-### Required: Assumptions Section
-
-Every generated documentation file and every agent output must end with an `## Assumptions` section. This applies at two distinct levels:
-
-- **Generated documentation files**: required by the orchestrator in STEP 2, STEP 3, and STEP 4 instructions, and stated in each writing agent's prompt.
-- **Agent output reports** (including read-only agents): the spec-brainstormer prompt ends with `## Assumptions`, and the report it returns follows this structure regardless of file-writing capability.
+The same `## Assumptions` requirement applies to **agent output reports** (including read-only agents): the brainstorm report and the audit list both end with `## Assumptions`.
 
 Format:
+
 ```markdown
 ## Assumptions
 - Bullet list of anything inferred or not directly verifiable
 ```
 
-### Required: Variable Passing Convention
-
-The orchestrator passes `PROJECT_TYPE` and `OUTPUT_ROOT` to subagents as inline text in the Agent invocation prompt. Agents must treat these as ground truth and not attempt to re-derive them from the codebase. Every agent prompt contains this exact instruction:
-
-> Variables (`PROJECT_TYPE` and `OUTPUT_ROOT`) are passed by the orchestrator in the invocation prompt. Treat them as ground truth; do not attempt to re-derive them.
-
-The `legacy-doc-consolidator` is the one exception: it only receives `OUTPUT_ROOT` (not `PROJECT_TYPE`), because its work is taxonomy-focused rather than project-type-sensitive.
-
-## Safety Rules
-
-### Required: Read-Only Agents Must Not Write
-
-Two agents are designated read-only and enforce this through tool permissions:
-
-| Agent | Tools | Write Permitted |
-|---|---|---|
-| `spec-brainstormer` | Read, Bash, Glob, Grep | No |
-| `spec-auditor` | Read, Bash, Glob, Grep | No |
-
-The brainstormer prompt additionally states: "Never create or modify any files." The auditor prompt states: "Do NOT modify any files." These textual rules reinforce the tool-level enforcement.
-
-### Required: No Overlapping Parallel Writes
-
-The orchestrator's safe parallelism policy prohibits parallel writes to the same file. Fan-out within a step is allowed only when:
-
-- Each parallel task works on independent inputs.
-- Each parallel task writes to a distinct target file or returns read-only analysis.
-- The step defines an explicit fan-in summary before downstream work continues.
-
-Explicitly prohibited from parallelization:
-- Writes to the same markdown file
-- CLAUDE.md migration or finalization
-- ADR numbering and creation (unless a single coordinator owns numbering)
-- Correction application across overlapping target files
-
-### Required: Fan-In Summary Structure
-
-When fan-out parallelism is used within a step, the merged result must be a fan-in summary that:
-
-1. Lists each subtask.
-2. Records success, failure, or skipped status per subtask.
-3. Merges non-conflicting findings.
-4. Surfaces conflicts explicitly rather than silently resolving them.
-
-This requirement appears in equivalent form (adapted to context) in the orchestrator, spec-brainstormer, legacy-doc-consolidator, and spec-auditor prompts.
-
-### Required: No File Deletion of Legacy Content
-
-The legacy-doc-consolidator and the orchestrator's STEP 0.5 both enforce that legacy files are never deleted. Legacy docs remain as historical context until a human removes them. The consolidator's prompt states:
-
-> Preserve legacy docs; do not delete them.
+## Safety Rules (load-bearing)
 
 ### Required: Evidence-Based Claims Only
 
-All agents must support their output with codebase evidence. This rule appears in every agent prompt in slightly different forms:
+All agents must support output with codebase evidence. The rule appears in equivalent form in every agent prompt:
 
-- Brainstormer: "Only include claims supported by repository evidence."
-- Spec-writer: "Use Bash or Grep to verify codebase facts before writing -- do not write claims you cannot confirm."
-- Conventions-writer: "Only include claims supported by code or existing docs."
-- ADR-writer: "Never invent decisions not supported by the code or existing docs."
+- `spec-brainstormer`: "Only include claims supported by repository evidence."
+- `spec-writer`: "Use Bash or Grep to verify codebase facts before writing — do not write claims you cannot confirm."
+- `conventions-writer`: "Only include claims supported by code or existing docs."
+- `adr-writer`: "Never invent decisions not supported by the code or existing docs."
 
 ### Required: Agent Delegation Enforcement
 
-The orchestrator must delegate STEPS 1, 2, 3, 4, 5, and 6 to named subagents. It must not perform that work in the main orchestration context. If a required agent is unavailable, the orchestrator must hard-stop and report:
+The orchestrator must delegate STEPS 1, 2, 3, 4, 5, 6, and 0.6 to their named subagents (orchestrator § Hard requirement). It must not perform that work in the main context. If a required agent file is missing, the orchestrator must hard-stop and report:
 
 1. Which subagent is missing.
 2. Which file path was expected.
 3. Which step cannot continue.
 4. What the user needs to create or fix.
 
+There is no silent fallback to in-context execution.
+
+### Required: No Overlapping Parallel Writes
+
+The safe parallelism policy (orchestrator § Safe parallelism policy) prohibits parallel writes to the same file. Fan-out within a step is allowed only when **all** of:
+
+- Each parallel task works on independent inputs.
+- Each parallel task writes to a distinct target file or returns read-only analysis.
+- The step defines an explicit fan-in summary before downstream work continues.
+
+Explicitly forbidden from parallelization:
+
+- Writes to the same markdown file.
+- `CLAUDE.md` migration or finalization.
+- ADR numbering and creation (unless a single coordinator owns numbering).
+- Correction application across overlapping target files.
+
+### Required: Mandatory Fan-In Summary
+
+When fan-out is used, the agent producing the step must emit a fan-in summary that:
+
+1. Lists each subtask.
+2. Records success / failure / skipped status per subtask.
+3. Merges non-conflicting findings.
+4. Surfaces conflicts explicitly rather than silently resolving them.
+
+This requirement appears in equivalent form in the orchestrator, `spec-brainstormer`, `legacy-doc-consolidator`, and `spec-auditor` prompts.
+
+### Required: Never Delete Legacy Content
+
+`legacy-doc-consolidator` and the orchestrator's STEP 0.5 / 0.6 instructions both forbid automatic deletion of legacy files. Legacy docs remain on disk as historical context until a human removes them. The consolidator's prompt states: "Preserve legacy docs; do not delete them."
+
+### Required: ADR Numbering is Centralized
+
+ADR numbering is owned exclusively by `adr-writer`. The agent (a) lists existing ADRs and their normalized topics, (b) decides per-candidate whether the topic is already covered (and updates the existing ADR if so, without assigning a new number), and (c) only after every candidate has been evaluated does it assign sequential `NNNN` numbers. The orchestrator runs `git pull` immediately before dispatching `adr-writer` (orchestrator § STEP 5) so the local `decisions/` folder reflects the latest remote state. Parallel ADR creation is forbidden unless a single coordinator owns numbering (orchestrator § STEP 5).
+
 ## Orchestrator-Specific Conventions
 
-### Required: Step Ordering
+### Required: Strict Step Ordering
 
-Steps execute strictly sequentially. The orchestrator enforces this order:
+Steps execute strictly sequentially:
 
 ```
 STEP 0 -> STEP 0.4 -> STEP 0.5 -> STEP 0.6 -> STEP 1 -> STEP 2 -> STEP 3 -> STEP 4 -> STEP 5 -> STEP 6 -> STEP 7 -> STEP 8
 ```
 
-Steps may be skipped based on execution mode or git-diff scoping, but the relative order never changes.
+Steps may be skipped per execution mode or git-diff scoping, but the relative order never changes.
 
 ### Required: Execution Mode Semantics
 
-| Mode | Steps Included |
+| Mode | Steps included |
 |---|---|
 | `full` (default) | All steps |
-| `light` | STEP 0, 0.4, 1, 2, 3, 4, 8 |
-| `force` | All steps, bypasses STEP 0.4 git-diff scoping |
+| `light` | STEP 0, 0.4, 1, 2, 3, 4, 8 (skips 0.5, 0.6, 5, 6, 7) |
+| `force` | All steps; bypasses STEP 0.4 git-diff scoping and uncommitted-change confirmation |
 
 ### Required: Incremental Updates Over Full Rewrites
 
-Multiple prompts state a preference for incremental updates:
+Multiple files state this preference verbatim or near-verbatim:
 
-- Orchestrator: "Prefer incremental updates over full rewrites."
-- Orchestrator: "Keep filenames stable between runs."
-- Spec-writer: "Prefer incremental edits over complete rewrites when files already exist."
-- Conventions-writer: "Prefer updating existing docs in place rather than rewriting them from scratch."
-- Legacy-doc-consolidator: "Do not overwrite canonical docs wholesale when incremental updates are sufficient."
+- Orchestrator: "Prefer incremental updates over full rewrites." / "Keep filenames stable between runs."
+- `spec-writer`: "Prefer incremental edits over complete rewrites when files already exist."
+- `conventions-writer`: "Prefer updating existing docs in place rather than rewriting them from scratch."
+- `legacy-doc-consolidator`: "Do not overwrite canonical docs wholesale when incremental updates are sufficient."
 
-### Observed: Effort Policy
+### Required: UTF-8 Markdown Output
 
-The orchestrator begins by attempting to run `/effort max` before any other step. This is a model-level instruction asking the LLM runtime to apply maximum reasoning effort — not an optimization of workflow steps. If the command is unavailable, the orchestrator continues with the same step sequence but without the effort-level guarantee.
+The orchestrator (§ When writing files) requires UTF-8-encoded markdown for all generated files.
 
 ## GFM Formatting Requirements
 
-### Required: Markdown Structure for Generated Docs
+### Required: Generated-Doc Structure
 
-All generated documentation files must follow this structure:
+All generated documentation files use:
 
-- GitHub-Flavored Markdown (GFM)
-- UTF-8 encoding
-- H1 (`#`) for the document title
-- H2 (`##`) for major sections
-- H3 (`###`) for subsections
-- File ends with `## Assumptions`
+- GitHub-Flavored Markdown (GFM).
+- UTF-8 encoding.
+- H1 (`#`) for the document title.
+- H2 (`##`) for major sections.
+- H3 (`###`) for subsections.
+- Final section: `## Assumptions`.
 
-### Observed: Table Usage
+### Observed: Tables for Structured Information
 
-Tables are used extensively throughout the orchestrator and agent prompts for structured information (tool permissions, step mappings, mode comparisons). Generated docs follow this pattern in practice.
+Tables are used extensively across the orchestrator and agent prompts (tool permissions, step mappings, mode comparisons, frontmatter shapes). Generated docs follow the same pattern.
+
+### Observed: Required vs Observed Labeling
+
+Generated convention docs in this project use explicit `### Required:` and `### Observed:` H3 prefixes to distinguish enforced rules from recurring patterns. New convention sections should follow this labeling.
+
+### Required: Cross-File Citations Use Section Anchors, Not Line Numbers
+
+When citing another file from a long-lived doc (anything under `docs/architecture/`, `docs/conventions/`, `docs/specs/`, `docs/reference/`, or `docs/architecture/decisions/`), use a section-name anchor rather than a line number.
+
+✅ Acceptable:
+
+- `orchestrator § STEP 5`
+- `CLAUDE.md § Model and Effort Policy`
+- `Agents/spec-auditor.md (variable-binding paragraph)`
+- the `JUDGE_MODEL` constant near the top of `scripts/smoke_grade.py`
+
+❌ Forbidden:
+
+- `orchestrator line 464`
+- `CLAUDE.md lines 60–91`
+- `Agents/spec-auditor.md line 19`
+- `scripts/smoke_grade.py line 38`
+
+**Why:** line numbers drift on every insertion or deletion in the cited file, silently invalidating the reference. Section names change only by deliberate rename, which is exactly when the citing reference *should* break loudly so a writer notices.
+
+**When no section header exists** (e.g., an agent file with only frontmatter and a final `## Assumptions`, or a short script), use a descriptive anchor in parentheses such as `(frontmatter)`, `(variable-binding paragraph)`, or `(<symbol-name> constant)` rather than falling back to a line number.
+
+**Exception:** code citations inside source files under `scripts/` or other implementation directories may reference line numbers when needed for review context — those references are usually short-lived. The rule above applies specifically to long-lived docs under `docs/`.
 
 ## Assumptions
 
-- The difference between `allowed-tools` (commands) and `tools` (agents) is a Claude Code platform convention, not a project-level choice. If Claude Code changes this convention, the project would need to follow.
-- The `model` key in command frontmatter is functional and causes the Claude Code runtime to route requests to that specific model. Subagents inherit the model or use Claude Code defaults.
-- The commented-out `accepted-arguments` key in the orchestrator suggests arguments are handled via `$ARGUMENTS` interpolation by the Claude Code runtime rather than through explicit frontmatter declaration.
-- The fan-in summary structure described in this document is a prompt-level requirement. Whether the Claude Code runtime enforces or validates fan-in summaries is unknown -- compliance depends on the agent's adherence to its instructions.
+- The `# accepted-arguments` comment in the orchestrator is parsed as a YAML comment by the runtime — not as a structured field. Its functional effect when uncommented is unverified.
+- The `model:` resolution mechanism (generic alias → concrete model version) is performed by the Claude Code harness; the skill never observes the resolved version. Version drift is therefore invisible to the workflow by design.
+- Prose-level write-path scoping (e.g. "spec-writer writes only under `OUTPUT_ROOT/architecture/`") relies on agent compliance with its instructions. There is no path-level enforcement primitive in the harness as of this run; if Claude Code adds one, the agent files should adopt it.
+- The `scripts/smoke_grade.py` model pin is treated as a known dev-tooling exception. Whether the policy formally carves this out or the script should switch to the `opus` alias is unresolved.
+- Line numbers cited in this document reflect the orchestrator at generation time; they will drift as the file evolves.

@@ -2,6 +2,7 @@
 name: spec-writer
 description: Generates architecture, reference, and spec documents from the brainstorm report, codebase, and existing docs.
 tools: [Read, Write, Bash, Grep]
+model: sonnet
 ---
 
 You are the primary documentation-writing agent for this project.

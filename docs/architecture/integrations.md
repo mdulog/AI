@@ -1,127 +1,152 @@
 # Integrations
 
-## Overview
+## Scope
 
-`generate-knowledge-base` is a Claude Code skill, not a compiled application with traditional runtime dependencies. It has no databases, message queues, or network services. Its integrations are limited to the execution environment (Claude Code), the local filesystem, and optionally Git.
+This skill has no databases, queues, message brokers, schedulers, auth providers, third-party SaaS APIs, or storage backends. It is a markdown-only workflow that runs entirely inside the Claude Code runtime against the target project's local filesystem.
 
-## Claude Code Runtime
+The "integrations" relevant to this project are the runtime harness it depends on, the slash commands it relies on (gracefully degraded when absent), the version-control system it uses for idempotency, an optional plugin, and the filesystem layout used for deployment.
 
-**Role:** Execution environment and tool provider.
+## Claude Code Harness (mandatory)
 
-The entire workflow runs within the Claude Code runtime. The runtime provides the tool set that both the orchestrator and subagents use:
+The skill cannot run outside the Claude Code runtime. The harness provides every primitive used by the orchestrator and agents.
 
-| Tool | Purpose | Used by |
+**Tools consumed:**
+
+| Tool | Used by | Purpose |
 |---|---|---|
-| `Read` | Read files from the local filesystem | All components |
-| `Write` | Write files to the local filesystem | Orchestrator + write agents |
-| `Bash` | Execute shell commands | All components |
-| `Agent` | Invoke subagent threads | Orchestrator only |
-| `Glob` | Pattern-based file discovery | Most subagents |
-| `Grep` | Text search within files | Most subagents |
+| `Read` | all components | Read source files, agent files, existing docs, `CLAUDE.md` |
+| `Write` | orchestrator + writer agents | Create or update markdown files under `OUTPUT_ROOT/`; finalize `CLAUDE.md` |
+| `Bash` | all components | Project-type detection, `git` operations, `Glob`/`find` fallbacks, folder creation |
+| `Glob` | most agents | Enumerate files (notably ADR numbering and audit passes) |
+| `Grep` | most agents | Locate patterns across the codebase during analysis |
+| `Agent` | orchestrator only | Dispatch subagents — sole entry point for delegated work |
 
-The orchestrator declares `model: claude-opus-4-6` in its YAML frontmatter, directing the Claude Code runtime to use that specific model for the orchestrator thread.
+The orchestrator declares `[Read, Write, Bash, Agent]`; subagents declare narrower tool sets per the components doc. The `Agent` tool is intentionally exclusive to the orchestrator: only the supervisor can dispatch subagents.
 
-### Deployment Mechanism
+**Dispatch model.** Each `Agent` invocation passes all needed context inline (PROJECT_TYPE, OUTPUT_ROOT, the brainstorm report, target file list, step-specific instructions). Agents return their result as their final assistant message — there is no shared memory, no inter-agent message bus, and no agent-to-agent direct call path.
 
-Claude Code discovers the orchestrator by its presence in `.claude/commands/` and subagents by their presence in `.claude/agents/` within the target project. The skill ships as source files in `generate-knowledge-base/` and must be copied into these locations before use:
+**Failure mode.** If a required agent file is missing from `.claude/agents/`, the orchestrator halts immediately and reports the missing path, the step that cannot continue, and the action the user must take. There is no in-context fallback (orchestrator § Hard requirement).
 
+## Slash Commands (harness-provided)
+
+The orchestrator invokes two harness slash commands during normal flow. Both degrade gracefully when unavailable.
+
+### `/effort <level>`
+
+Sets the reasoning effort for subsequent dispatches. The orchestrator's effort schedule:
+
+- `/effort medium` at session start; remains medium for STEPS 0–0.6, 2, 3, 4, 7, 8.
+- `/effort high` before STEP 1 (`spec-brainstormer`), STEP 5 (`adr-writer`), and STEP 6 (`spec-auditor`); reverted to `medium` immediately after each.
+
+If `/effort` is unavailable in the harness, the orchestrator continues and behaves as if the requested level were applied (orchestrator § Model and effort policy). The skill never blocks on missing effort control.
+
+### `/init`
+
+Used in STEP 0 only when the target project has no `CLAUDE.md`. The orchestrator runs `/init`, waits for completion, then reviews and improves the generated file before continuing (orchestrator § STEP 0 — Check and migrate CLAUDE.md). When `CLAUDE.md` already exists, `/init` is not invoked — the orchestrator migrates legacy section references in place instead.
+
+## Git (optional)
+
+`git` is used opportunistically for idempotency and ADR safety. The skill degrades when git is unavailable or the project is not a git repo.
+
+**STEP 0.4 — Idempotency pre-flight.**
+
+```bash
+git log -1 --format="%H" -- "$OUTPUT_ROOT"/    # find LAST_SHA of last docs commit
+git diff "$LAST_SHA" HEAD --name-only          # list paths changed since then
+git diff HEAD -- "$OUTPUT_ROOT"/               # list uncommitted edits in docs folder
 ```
-.claude/commands/generate-knowledge-base.md   <-- orchestrator
-.claude/agents/spec-brainstormer.md            <-- subagents (6 files)
-.claude/agents/spec-writer.md
-.claude/agents/conventions-writer.md
-.claude/agents/legacy-doc-consolidator.md
-.claude/agents/adr-writer.md
-.claude/agents/spec-auditor.md
-```
 
-### Pre-approved Permissions
+The path-change list is mapped to a step-skip plan (source-only changes → STEPS 1–5 + 8; docs-only changes → STEP 8 only; nothing changed → confirmation prompt). Uncommitted edits in the docs folder trigger a continue/abort prompt before agents run.
 
-The repository includes a `.claude/settings.local.json` that pre-approves two specific Bash commands for agent deployment:
+**STEP 0.5 — Legacy migration.** Uses `git mv` when inside a git repo so history is preserved; falls back to plain filesystem moves only when necessary. Never overwrites an existing target file; never deletes content without first moving it.
 
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(mkdir -p .claude/agents)",
-      "Bash(cp generate-knowledge-base/Agents/spec-brainstormer.md generate-knowledge-base/Agents/spec-writer.md generate-knowledge-base/Agents/conventions-writer.md generate-knowledge-base/Agents/legacy-doc-consolidator.md generate-knowledge-base/Agents/adr-writer.md generate-knowledge-base/Agents/spec-auditor.md .claude/agents/)"
-    ]
-  }
-}
-```
+**STEP 5 — Pre-ADR sync.** Runs `git pull` (or equivalent) immediately before dispatching `adr-writer` to ensure the local `OUTPUT_ROOT/architecture/decisions/` folder reflects the latest remote state. This is the project's primary defense against ADR-number collisions when multiple developers run the workflow concurrently.
 
-Note: the `cp` permission grants an exact literal command — not a glob or wildcard. Only this specific invocation is pre-approved.
+**Degraded mode.** If `git` is unavailable: STEP 0.4 logs a warning and runs all steps; STEP 0.5 falls back to filesystem moves; STEP 5 proceeds without the sync, accepting the small collision risk.
 
-This allows the deployment commands to run without per-invocation user approval.
+## Superpowers Plugin (optional)
 
-## Git
+The orchestrator detects Superpowers via either of:
 
-**Role:** Idempotency scoping, legacy migration, and change detection.
+- `.claude/skills/superpowers` directory existing in the target project, or
+- Superpowers skills listed in `.claude/settings.json`.
 
-**Status:** Optional. The workflow degrades gracefully when git is unavailable or the project is not a git repository.
+When present, subagents *may* invoke Superpowers skills during their step (orchestrator § Superpowers usage). Each agent has a sanctioned use:
 
-### Usage Points
-
-| Step | Git operation | Purpose |
-|---|---|---|
-| STEP 0.4 | `git log -1 --format="%H" -- "$OUTPUT_ROOT"/` | Find the last commit that touched the docs folder |
-| STEP 0.4 | `git diff "$LAST_SHA" HEAD --name-only` | Determine which source files changed since the last docs commit |
-| STEP 0.4 | `git diff HEAD -- "$OUTPUT_ROOT"/` | Detect uncommitted manual edits in the docs folder |
-| STEP 0.5 | `git mv` | Move legacy doc files while preserving git history |
-| STEP 5 | `git pull` | Sync local ADR folder with remote before numbering (prevents concurrent-run collisions). **Orchestrator action** — performed before delegating to `adr-writer`. Subagents do not have network access. |
-
-### Degraded Mode
-
-When git is unavailable:
-- STEP 0.4 idempotency checks are skipped entirely; all steps run unconditionally.
-- STEP 0.5 falls back to filesystem moves instead of `git mv`, losing history preservation.
-- STEP 5 skips the `git pull` sync; concurrent-run ADR collisions become possible.
-
-The orchestrator logs a warning when git is unavailable but does not stop execution.
-
-## Local Filesystem
-
-**Role:** Primary input (codebase files) and output (generated documentation).
-
-The workflow reads the target project's codebase from the local filesystem and writes all generated documentation to `{OUTPUT_ROOT}/` (default: `docs/`). The output folder structure is created in STEP 0 if it does not already exist, with `.gitkeep` files in empty directories.
-
-### Output Paths
-
-See [architecture/overview.md](overview.md) for the complete output taxonomy.
-
-## Superpowers Plugin (Optional)
-
-**Role:** Extended analysis and documentation capabilities.
-
-The orchestrator declares optional integration with a Superpowers plugin. Detection is orchestrator-side at runtime, checking for `.claude/skills/superpowers` or Superpowers entries in `.claude/settings.json`. No subagent file references Superpowers directly — the integration is described only in the orchestrator's instructions.
-
-When available, specific subagents may use Superpowers skills for their designated role:
 - `spec-brainstormer` — analysis or exploration skills
 - `spec-writer` — documentation or design skills
 - `conventions-writer` — coding-style or refactoring skills
 - `legacy-doc-consolidator` — summarization or classification skills
-- `adr-writer` — ADR or architecture skills
+- `adr-writer` — ADR or architecture skills (still must follow MADR)
 - `spec-auditor` — review skills
 
-This integration is purely opportunistic:
-- No step depends on Superpowers being available.
-- Agent behavior is identical whether or not Superpowers is present.
-- Superpowers skills must respect the orchestrator's safety rules (no blind overwrites, no legacy file deletion, no invented facts).
+Constraints carried over: Superpowers usage must respect this orchestrator's safety rules — no blind overwrites, no deletion of legacy files, no inventing facts not supported by the codebase. Superpowers is never required; the workflow runs identically without it.
 
-## What This Project Does Not Integrate With
+## Target-Project Filesystem
 
-For clarity, this skill has no:
+The skill is fundamentally a filesystem rewriter. It reads project source as input and writes markdown as output.
 
-- **Databases or data stores** -- it reads source files and writes markdown; there is no persistence layer.
-- **Network services or APIs** -- all interaction is via local filesystem and the Claude Code runtime.
-- **Message queues or event buses** -- inter-agent communication is handled by the orchestrator passing inline context.
-- **CI/CD pipelines** -- no CI/CD integration is currently defined; the skill is designed for manual invocation via `/generate-knowledge-base`.
-- **Authentication or authorization systems** -- execution relies on the Claude Code session's existing permissions.
-- **Container or cloud infrastructure** -- runs locally on the user's machine within Claude Code.
+**Reads:**
+
+- `CLAUDE.md` (target project root) — domain rules and existing taxonomy references.
+- Project source — language-specific config (`package.json`, `*.csproj`, `*.sln`, `Program.cs`, `Startup.cs`, etc.) is detected for `PROJECT_TYPE`.
+- Existing files under `OUTPUT_ROOT/` — preserved and incrementally updated.
+- Legacy doc layouts (when they exist) — `OUTPUT_ROOT/decisions/`, `OUTPUT_ROOT/specs/01-architecture.md`, etc.
+- `.claude/skills/superpowers` and `.claude/settings.json` — optional plugin detection.
+
+**Writes:**
+
+- `CLAUDE.md` — updated in place; legacy section headings preserved when present, new sections appended only when missing.
+- `OUTPUT_ROOT/architecture/{overview,components,integrations}.md`
+- `OUTPUT_ROOT/architecture/decisions/NNNN-*.md` (MADR-format ADRs)
+- `OUTPUT_ROOT/conventions/{coding,testing,naming,api}.md`
+- `OUTPUT_ROOT/specs/00-overview.md` (plus optional feature specs)
+- `OUTPUT_ROOT/reference/api.md` (only when the project has APIs to document)
+- `OUTPUT_ROOT/summary/latest-run.md`
+- `OUTPUT_ROOT/summary/runs/YYYYMMDD-HHMMSS.md`
+
+**Folders the orchestrator creates with `.gitkeep` placeholders** (STEP 0): all of the above directories plus `OUTPUT_ROOT/plans/`. The `plans/` folder is preserved across runs but never auto-managed — implementation plans are user-authored, not generated.
+
+## Deployment Path (filesystem copy)
+
+Installation into a target project is a pure filesystem copy — no package manager, no build step, no service registration:
+
+```bash
+# From the target project root:
+mkdir -p .claude/commands .claude/agents
+cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
+cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+# Then invoke:
+/generate-knowledge-base [output-root-folder] [mode=full|light|force]
+```
+
+After deployment, Claude Code in the target project loads `.claude/commands/generate-knowledge-base.md` as a custom slash command and resolves subagents from `.claude/agents/` by their frontmatter `name:` field.
+
+This repository's own `.claude/` directory is local dev-time configuration for working on the skill itself; it is not part of the deployable surface.
+
+## Things This Project Does Not Integrate With
+
+To preempt audit confusion: this project has no integration with any of the following.
+
+- HTTP frameworks, REST or GraphQL clients/servers — there is no network surface.
+- Databases (relational or otherwise), ORMs, migration tools.
+- Message brokers, queues, event buses (Kafka, RabbitMQ, SQS, NATS, etc.).
+- Schedulers, cron, background-job runners.
+- Auth providers (OAuth, OIDC, SAML, etc.) — the slash command runs under whatever identity Claude Code itself authenticates as.
+- Third-party SaaS APIs at runtime.
+- Cloud storage (S3, GCS, blob storage) or CDNs.
+- Containerization runtimes — there is nothing to containerize.
+
+This is why no `OUTPUT_ROOT/reference/api.md` is generated for this repository: there are no APIs to document. The folder exists (created with `.gitkeep` by STEP 0) but remains empty by design.
+
+## Dev Tooling (not part of the skill)
+
+`scripts/smoke_grade.py` is an ad-hoc LLM-judge regression grader that uses the Anthropic Python SDK and Pydantic. It is invoked manually outside the Claude Code workflow and is not consumed by the orchestrator or any subagent at runtime. It is not part of the deployable skill — it is excluded from the `.claude/agents/` and `.claude/commands/` copy step. The script pins a specific model ID (`JUDGE_MODEL = "claude-opus-4-7"`) under the dev-tooling carve-out codified in `CLAUDE.md` § Model and Effort Policy: the Anthropic SDK does not resolve generic aliases like `opus`, so dev tooling that calls the SDK directly must use exact model IDs. The pin is bumped on model launches, not removed.
 
 ## Assumptions
 
-- The Claude Code runtime enforces the tool permissions declared in YAML frontmatter. An agent declaring `tools: [Read, Bash, Glob, Grep]` cannot invoke the `Write` tool even if it attempts to.
-- The `model: claude-opus-4-6` declaration is functional and causes the Claude Code runtime to route the orchestrator's requests to that specific model. Without this declaration, a different default model might be used.
-- Git operations in the workflow assume a standard git setup (remote tracking branches, typical commit history). Non-standard configurations (shallow clones, detached HEAD states, submodules) may cause unexpected behavior in STEP 0.4 or STEP 0.5.
-- The Superpowers plugin integration is described only in the orchestrator file. No subagent file references Superpowers directly, suggesting the orchestrator's description serves as documentation of a future or optional capability rather than a currently exercised integration.
+- Claude Code's `Agent` dispatch is synchronous from the orchestrator's perspective — the orchestrator waits for each agent's final message before continuing. The skill's phase-based ordering relies on this.
+- `/effort` and `/init` are stable harness slash commands; if either is renamed or removed by the harness, the orchestrator's "graceful degradation" path is the documented fallback but has not been canary-tested in this repo.
+- Superpowers plugin detection by directory or settings entry is sufficient; the orchestrator does not call any Superpowers introspection API to confirm capability before delegating.
+- `git` operations assume a standard CLI git binary on `$PATH`; alternative VCS (Mercurial, Jujutsu, Fossil) is not supported and would put the workflow in degraded mode.
+- The deployment copy is one-way and idempotent; updating the skill in a target project means re-running the same `cp` commands from a refreshed source checkout.

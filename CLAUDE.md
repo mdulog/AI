@@ -56,6 +56,39 @@ STEP 8    Finalize CLAUDE.md in the target project
 - **Three execution modes** (`full`, `light`, `force`) control which steps run. Light mode skips legacy migration, ADRs, audit, and corrections.
 - **Idempotency via git-diff scoping** (STEP 0.4) — on re-runs, the orchestrator uses `git log`/`git diff` to determine which steps actually need to re-execute based on what source files changed since the last docs commit.
 - **Safe parallelism policy** — fan-out is allowed only within a step when tasks are independent and write to distinct files, with a mandatory fan-in summary before proceeding.
+- **Model + effort follow a token-hygiene policy** — orchestrator on Sonnet/medium; subagents declare a model in frontmatter; orchestrator escalates effort to `high` only around `spec-brainstormer`, `adr-writer`, and `spec-auditor`. See § Model and Effort Policy.
+
+## Model and Effort Policy
+
+Two stacked rules govern token spend:
+
+**Model rule.**
+1. **Sonnet** is the default.
+2. **Opus** is used only where escalation is justified by complexity, ambiguity, or compounding output quality.
+3. **Haiku** is reserved for narrow mechanical chores — no current subagent qualifies.
+
+**Effort ladder.**
+1. **Sonnet + medium** — default for orchestration and standard generation.
+2. **Sonnet + high** — try this before escalating model.
+3. **Opus + high** — truly hard tasks (current Opus agents sit here).
+4. **Opus + max** — rare, highest-stakes reasoning; no current step qualifies.
+5. **Haiku + low** — narrow mechanical chores; no current step qualifies.
+
+| Agent | Model | Effort | Why this cell |
+|---|---|---|---|
+| (orchestrator) | `sonnet` | `medium` | Procedural coordination, git-diff scoping, dispatch. |
+| `spec-brainstormer` | `opus` | `high` | Output feeds every downstream writer; quality compounds. |
+| `spec-writer` | `sonnet` | `medium` | Structured generation from a clear report. |
+| `conventions-writer` | `sonnet` | `medium` | Bounded judgment with brainstorm in hand. |
+| `legacy-doc-consolidator` | `sonnet` | `medium` | Editorial categorization with explicit rules. |
+| `adr-writer` | `opus` | `high` | Deduplication and significance judgment; collisions are costly. |
+| `spec-auditor` | `opus` | `high` | Contradiction detection gates the corrections step. |
+
+Mechanics:
+- **Model**: the agent's frontmatter `model:` is the single source of truth. Use generic aliases (`opus` / `sonnet` / `haiku` / `inherit`). Never pin a specific version (e.g. `claude-opus-4-6`) — pins miss model improvements. **Exception**: dev tooling under `scripts/` that calls the Anthropic SDK directly must use specific model IDs (e.g. `claude-opus-4-7`) because the SDK does not resolve aliases. This carve-out is scoped strictly to dev tooling — orchestrator and agent frontmatter must use generic aliases.
+- **Effort**: set by the orchestrator via `/effort <level>` before each `Agent` dispatch. Default is `medium`; escalate to `high` around `spec-brainstormer`, `adr-writer`, `spec-auditor`, then revert.
+- No per-step `model` overrides on `Agent` invocations.
+- A new subagent added without a `model:` field will inherit the orchestrator's `sonnet` — a safe default.
 
 ## Output Taxonomy (generated in target projects)
 

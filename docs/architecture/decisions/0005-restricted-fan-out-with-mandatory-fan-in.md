@@ -22,7 +22,7 @@ Chosen option: **Restricted fan-out with mandatory fan-in**, because it permits 
 
 The orchestrator's "Safe parallelism policy" section defines three conditions that must all be true for fan-out to be permitted: (1) each parallel task works on independent inputs, (2) each parallel task writes to a distinct target file or returns read-only analysis, and (3) the step defines an explicit fan-in summary before downstream work continues. The fan-in summary must list each subtask, record success/failure/skipped status, merge non-conflicting findings, and surface conflicts explicitly.
 
-The policy explicitly prohibits parallelizing: writes to the same markdown file, CLAUDE.md migration or finalization, ADR numbering and creation (unless numbering ownership is centralized), and correction application across overlapping target files. The policy is defined in the orchestrator's "Safe parallelism policy" section (lines 75-99 of `generate-knowledge-base.md`) and restated in three relevant subagent definitions — spec-brainstormer, legacy-doc-consolidator, and spec-auditor — each adapting the wording to their operational context.
+The policy explicitly prohibits parallelizing: writes to the same markdown file, CLAUDE.md migration or finalization, ADR numbering and creation (unless numbering ownership is centralized), and correction application across overlapping target files. The policy is defined in the orchestrator's § Safe parallelism policy and restated in three relevant subagent definitions — spec-brainstormer, legacy-doc-consolidator, and spec-auditor — each adapting the wording to their operational context.
 
 ### Consequences
 

@@ -2,169 +2,179 @@
 
 ## System Purpose
 
-`generate-knowledge-base` is a Claude Code skill that provides a multi-agent orchestration workflow for generating structured project documentation. It is not a standalone application -- it is deployed _into_ target projects as a Claude Code custom command (`/generate-knowledge-base`) and invoked from within those projects.
+`generate-knowledge-base` is a Claude Code custom slash-command skill (`/generate-knowledge-base`) plus six subagents that, when deployed into a target project's `.claude/` folder, produce an evidence-based knowledge base under that project's `docs/` tree.
 
-Given any software repository, the skill performs a deep codebase analysis and produces a complete knowledge base: architecture docs, coding conventions, product specs, architectural decision records (ADRs), and an API reference. The output is designed to be re-run as the codebase evolves, keeping documentation current through incremental updates rather than full rewrites.
+It is not a runtime service or library. The repository contains no compiled artifacts, no application entry point, no HTTP API, and no datastore. Every component is a markdown file with YAML frontmatter that the Claude Code runtime interprets at invocation time. See the frontmatter of `generate-knowledge-base/generate-knowledge-base.md` for the skill declaration (`description`, `allowed-tools`, `model`).
+
+Given any software repository, the workflow performs a deep codebase analysis and emits architecture docs, coding conventions, product specs, architectural decision records (ADRs), and (when applicable) an API reference. Output is designed to be re-run as the codebase evolves, applying incremental updates rather than full rewrites.
+
+## Core Use Cases
+
+1. **First-time onboarding** — generate a complete docs baseline (architecture, components, integrations, conventions, specs, optional API reference, ADRs).
+2. **Incremental refresh** — re-run on a codebase whose source has changed; STEP 0.4 uses git-diff scoping to skip unchanged steps.
+3. **Out-of-band recovery** — `mode=force` bypasses git-diff scoping when the docs folder has drifted from git (e.g. a previous run's output was never committed).
+4. **Quick refresh** — `mode=light` skips legacy migration, legacy consolidation, ADRs, audit, and corrections.
+
+The public surface is the slash command itself plus its arguments: `[output-root-folder] [mode=full|light|force]`. There is no programmatic or HTTP entry point.
 
 ## Architectural Style
 
-The system follows a **supervisor-led, phase-based orchestration** pattern:
+The system is a **supervisor-led, phase-based orchestration**:
 
-- A single orchestrator controls all execution flow.
-- Six specialized subagents perform the analytical and writing work.
-- Steps execute strictly sequentially -- no overlapping write operations run in parallel.
-- The orchestrator delegates to subagents via the Claude Code `Agent` tool, passing context (brainstorm reports, project type, output root) as inline prompt content rather than file artifacts.
+- A single orchestrator file (`generate-knowledge-base.md`) controls all execution flow.
+- Six specialized subagents under `Agents/` perform analytical and writing work.
+- Steps execute strictly sequentially. Per the orchestrator's § Safe parallelism policy, "Do not run overlapping write operations in parallel."
+- The orchestrator delegates to subagents via the Claude Code `Agent` tool, passing context (brainstorm reports, project type, output root) inline in the dispatch prompt rather than via file artifacts.
 
-This is a **prompt-engineering architecture**, not a compiled software system. Every component is a markdown file with YAML frontmatter that declares the agent's identity, description, and permitted tool set. The Claude Code runtime interprets these files and enforces tool boundaries.
+This is a **prompt-engineering architecture**, not a compiled software system. Agent boundaries are enforced by the `tools:` field in each agent's YAML frontmatter — read-only agents simply omit `Write`, and only the orchestrator declares the `Agent` tool, so only the supervisor can dispatch subagents.
 
 ## Execution Flow
 
 The orchestrator defines a 12-step pipeline (STEP 0 through STEP 8, including intermediate steps 0.4, 0.5, and 0.6):
 
 ```
-STEP 0    Pre-flight
+STEP 0    Pre-flight (always)
             - Detect PROJECT_TYPE from repo markers
             - Verify all 6 agent files exist in .claude/agents/
-            - Initialize or migrate CLAUDE.md
-            - Create output folder structure
+            - Initialize or migrate CLAUDE.md (runs /init when missing)
+            - Create output folder structure with .gitkeep where empty
 
-STEP 0.4  Idempotency pre-flight
+STEP 0.4  Idempotency pre-flight (skipped in mode=force)
             - Git-diff scoping: determine which steps need re-execution
+              based on what changed since the last docs commit
             - Manual edit detection: warn about uncommitted doc changes
 
-STEP 0.5  Legacy doc migration (full mode only)
-            - Move legacy files to new taxonomy paths via git mv
+STEP 0.5  Legacy doc migration (mode=full only)
+            - Safe filesystem moves via `git mv` (orchestrator-direct)
 
-STEP 0.6  Legacy doc consolidation (full mode only)
-            - Editorial pass: classify and merge legacy content into canonical docs
+STEP 0.6  Legacy doc consolidation (mode=full only)
+            - Editorial merge of legacy content into canonical docs
             - Delegated to legacy-doc-consolidator agent
 
-STEP 1    Brainstorm (read-only)
+STEP 1    Brainstorm (always; read-only)
             - Deep codebase analysis via spec-brainstormer agent
-            - Produces a structured report consumed by later steps
+            - Returns a structured report consumed by later steps
 
-STEP 2    Architecture docs
+STEP 2    Architecture docs (always)
             - spec-writer agent generates overview, components, integrations
-            - Also generates reference/api.md when the project has APIs
+            - Generates reference/api.md only when project has APIs
 
-STEP 3    Conventions docs
-            - conventions-writer agent extracts coding, testing, naming, API conventions
+STEP 3    Conventions docs (always)
+            - conventions-writer agent generates coding/testing/naming/api
 
-STEP 4    Specs
-            - spec-writer agent (second invocation) generates product/feature specs
+STEP 4    Specs (always)
+            - spec-writer agent (second invocation) generates specs/00-overview.md
+              (and additional feature specs only when clearly supported)
 
-STEP 5    ADRs (full mode only)
-            - adr-writer agent identifies 3-5 architectural decisions, writes MADR files
+STEP 5    ADRs (mode=full only)
+            - adr-writer agent identifies 3-5 significant decisions and
+              writes MADR-format files; runs `git pull` first to keep
+              numbering authoritative across concurrent contributors
 
-STEP 6    Audit (full mode only, read-only)
-            - spec-auditor agent reviews all docs against codebase
-            - Produces prioritized correction list (High / Medium / Low)
+STEP 6    Audit (mode=full only; read-only)
+            - spec-auditor agent returns a prioritized correction list
 
-STEP 7    Apply corrections (full mode only)
-            - User reviews and confirms corrections before any edits are made
+STEP 7    Apply corrections (mode=full only)
+            - Orchestrator confirms High/Medium corrections with the user
+              and applies only the confirmed subset
 
-STEP 8    Finalize CLAUDE.md
-            - Update target project's CLAUDE.md with references to generated docs
+STEP 8    Finalize CLAUDE.md (always)
+            - Reconcile any remaining legacy references in CLAUDE.md
 ```
 
-### Data Flow Between Steps
-
-The brainstorm report from STEP 1 is the primary analytical artifact. It is passed as inline context in Agent invocations to STEP 2, STEP 3, and STEP 4 -- it is not written to a file. Each subsequent writing step receives this report plus access to the codebase and any existing docs under the output root.
-
-The audit report from STEP 6 flows into STEP 7, where the orchestrator presents corrections to the user before applying them.
+The hard requirement (orchestrator § Hard requirement) is that STEPS 1, 2, 3, 4, 5, 6, and 0.6 must delegate to their named subagent. If a required agent file is missing, the orchestrator stops immediately and reports which step cannot continue.
 
 ## Execution Modes
 
-Three modes control which steps run:
+Three modes control which steps run; the per-step skip condition is intersected with the mode's permitted step set (the more restrictive wins).
 
 | Mode | Behavior |
 |---|---|
-| `full` (default) | Runs all steps: migration, consolidation, brainstorm, all doc generation, ADRs, audit, corrections, finalization |
-| `light` | Runs only essential steps: STEP 0, 0.4, 1, 2, 3, 4, 8. Skips migration, consolidation, ADRs, audit, and corrections |
-| `force` | Identical to `full` but bypasses STEP 0.4 git-diff scoping and manual edit confirmation. Use when docs are out of sync with git |
+| `full` (default) | Runs the complete workflow including legacy migration, consolidation, ADRs, audit, corrections, and CLAUDE.md finalization. |
+| `light` | Skips STEP 0.5, STEP 0.6, STEP 5, STEP 6, and STEP 7. Always runs STEPS 0, 0.4, 1, 2, 3, 4, and 8. |
+| `force` | Identical to `full` but bypasses the STEP 0.4 git-diff scoping and uncommitted-change confirmation. Used when the docs folder is out of sync with git. |
 
-The mode is passed via `$ARGUMENTS` (e.g., `mode=light`). If unspecified, `full` is used.
+## Idempotency Model
 
-## Deployment Model
+STEP 0.4 keeps re-runs cheap and safe:
 
-The skill is deployed by copying files into the target project:
+- **Step scoping** — `git log -1 --format="%H" -- "$OUTPUT_ROOT"/` finds the last docs commit; `git diff $LAST_SHA HEAD --name-only` determines which paths changed. Source-only changes run STEPS 1–5 + 8 (plus STEPS 0.5, 0.6, 6, and 7 in full mode); docs-only changes collapse to STEP 8; no changes triggers a "force re-run?" prompt.
+- **Manual edit detection** — `git diff HEAD -- "$OUTPUT_ROOT"/` lists uncommitted edits in the docs folder and prompts the user before agents touch those files.
+- **Degraded mode** — if `git` is unavailable or the project is not a git repo, both checks are skipped and all steps run.
 
+## Safe Parallelism Policy
+
+The orchestrator is supervisor-led and phase-based. Parallel fan-out is allowed only inside a step when all of the following hold (orchestrator § Safe parallelism policy):
+
+- each parallel task works on independent inputs
+- each parallel task writes to a distinct target file or returns read-only analysis
+- the step defines an explicit fan-in summary before downstream work continues
+
+Explicitly disallowed: writes to the same markdown file, CLAUDE.md migration or finalization, ADR numbering and creation unless numbering is centralized, and correction application across overlapping target files.
+
+When fan-out is used, the agent producing the step must emit a fan-in summary that lists each subtask, records success/failure/skipped status, merges non-conflicting findings, and surfaces conflicts explicitly rather than silently resolving them.
+
+## Model and Effort Policy (token hygiene)
+
+The skill operates on two declarative axes — model (Sonnet / Opus / Haiku) and reasoning effort (low / medium / high / max). Sources of truth:
+
+- **Per-agent model** is declared in each agent's frontmatter `model:` field. Generic aliases only — never a pinned version.
+- **Per-step effort** is set by the orchestrator via `/effort <level>` immediately before the relevant `Agent` dispatch. Default is `medium`; the orchestrator escalates to `high` before STEP 1 (`spec-brainstormer`), STEP 5 (`adr-writer`), and STEP 6 (`spec-auditor`), then reverts to `medium` after each.
+- If `/effort` is unavailable in the harness, the orchestrator continues and behaves as if the requested level were applied.
+
+See `components.md` for the full per-agent model table; the policy itself is defined in the orchestrator's § Model and effort policy and `CLAUDE.md` § Model and Effort Policy.
+
+## Deployment and Runtime Shape
+
+The skill ships as files in this repository's `generate-knowledge-base/` directory. Installation into a target project is a pure filesystem copy:
+
+```bash
+mkdir -p .claude/commands .claude/agents
+cp generate-knowledge-base/generate-knowledge-base.md .claude/commands/
+cp generate-knowledge-base/Agents/*.md .claude/agents/
 ```
-Target project/
-  .claude/
-    commands/
-      generate-knowledge-base.md    <-- orchestrator
-    agents/
-      spec-brainstormer.md          <-- 6 subagent files
-      spec-writer.md
-      conventions-writer.md
-      legacy-doc-consolidator.md
-      adr-writer.md
-      spec-auditor.md
-```
 
-The orchestrator runs within the Claude Code runtime on the user's machine. It requires:
+At runtime, Claude Code in the target project loads the orchestrator as a custom slash command and resolves subagents from `.claude/agents/`. There is no service to start, no port to bind, no process to manage. The orchestrator's only persistent side effects are the markdown files it writes under `OUTPUT_ROOT/` and the project-root `CLAUDE.md`.
 
-- **Claude Code** as the execution environment (provides the `Read`, `Write`, `Bash`, `Agent`, `Glob`, `Grep` tools). Note: the orchestrator itself only declares `[Read, Write, Bash, Agent]` — it uses `Bash` for file-discovery operations rather than `Glob` or `Grep` directly.
-- **Opus 4.6 model** (declared in the orchestrator's frontmatter via `model: claude-opus-4-6`)
-- **Git** (optional; used for idempotency scoping and legacy migration, degrades gracefully if unavailable)
+This repository self-hosts: its own `docs/` tree is the prior run's output and is regenerated by running the skill on itself.
 
 ## Output Taxonomy
 
-The workflow produces this folder structure in the target project:
-
 ```
-{OUTPUT_ROOT}/
-  architecture/
-    overview.md              System purpose, layers, major flows
-    components.md            Modules, responsibilities, dependency flow
-    integrations.md          External dependencies, services, databases
-    decisions/
-      NNNN-*.md              MADR-format architectural decision records
-  conventions/
-    coding.md                Layering, DI, error handling, async patterns
-    testing.md               Frameworks, placement, fixture patterns
-    naming.md                Namespaces, DTOs, components, interfaces
-    api.md                   Route style, auth, versioning (when relevant)
-  specs/
-    00-overview.md           Product behavior and feature areas
-  reference/
-    api.md                   API routes, auth, request/response (when relevant)
-  plans/                     (created by STEP 0; populated only by legacy-doc-consolidator when legacy content is classified as "plan" — not written to by standard pipeline agents)
-  summary/
-    latest-run.md            Most recent run summary
-    runs/
-      YYYYMMDD-HHMMSS.md    Timestamped historical run summaries
+docs/
+  architecture/{overview,components,integrations}.md
+  architecture/decisions/NNNN-*.md           (MADR-format ADRs)
+  conventions/{coding,testing,naming,api}.md
+  specs/00-overview.md                       (+ optional feature specs)
+  reference/api.md                           (only when project has APIs)
+  plans/                                     (preserved, never auto-managed)
+  summary/latest-run.md
+  summary/runs/YYYYMMDD-HHMMSS.md
 ```
 
-The default `OUTPUT_ROOT` is `docs`. Users can override it via `$ARGUMENTS`.
+Folder intent (orchestrator § Documentation intent):
+
+- `architecture/` — long-lived system knowledge.
+- `architecture/decisions/` — MADR-format ADRs.
+- `conventions/` — stable implementation rules and team conventions.
+- `specs/` — product and feature specifications.
+- `plans/` — implementation plans and execution checklists; never auto-managed.
+- `reference/` — durable lookup documentation (APIs, configuration, schemas).
+- `summary/` — persistent summaries of orchestration runs, plus a timestamped history under `summary/runs/`.
+
+For this repository specifically, `reference/api.md` is intentionally not generated: the skill exposes no HTTP, RPC, or programmatic API — only the slash-command interface.
 
 ## Important Constraints
 
-### Idempotency
-
-On re-runs, STEP 0.4 uses `git log` and `git diff` to determine what source files changed since the last documentation commit. Steps are skipped when their inputs have not changed:
-
-- If only docs changed (no source code changes): only STEP 8 runs.
-- If source code changed: STEPS 1-5 + 8 run (plus 6 and 7 in full mode).
-- If nothing changed: the user is prompted to force re-run or exit.
-
-### Safe Parallelism
-
-Fan-out within a step is allowed only when all parallel tasks work on independent inputs, write to distinct files, and produce an explicit fan-in summary before downstream work continues. Writes to the same file, CLAUDE.md operations, and ADR numbering must never be parallelized without a centralized coordinator.
-
-### Human-in-the-Loop
-
-STEP 7 is the only step that requires user confirmation before modifying files. The orchestrator presents the audit's High and Medium corrections and waits for the user to approve before applying edits.
-
-### Agent Enforcement
-
-The orchestrator hard-stops if any required agent file is missing from `.claude/agents/`. It does not silently fall back to performing the work in the main context. This is an intentional safety boundary -- each agent has a scoped tool set and role, and bypassing agents would remove those constraints.
+- **Markdown-only.** No source-code language indicators apply. The skill cannot be packaged as an installable library.
+- **Claude Code harness is mandatory.** The skill cannot run outside the Claude Code runtime; it depends on the `Agent`, `Read`, `Write`, `Bash`, `Glob`, and `Grep` tools and on slash-command dispatch.
+- **Subagents are stateless.** Each agent invocation receives all needed context inline; there is no shared memory other than files on disk.
+- **No silent fallbacks for missing agents.** If any required agent file is absent, the orchestrator halts and reports the missing path — it does not fall back to in-context execution.
+- **ADR numbering is centralized.** Numbering and deduplication are owned by `adr-writer` to prevent collisions; parallel ADR creation is explicitly forbidden unless a single coordinator owns numbering (orchestrator § STEP 5).
 
 ## Assumptions
 
-- The Claude Code runtime is the only supported execution environment. The skill cannot run outside of Claude Code.
-- The `model: claude-opus-4-6` declaration in the orchestrator frontmatter is honored by the Claude Code runtime to select the model for the orchestrator thread. Subagent model selection is assumed to inherit from the orchestrator or follow Claude Code defaults.
-- Git is expected but not required. When git is unavailable, idempotency scoping (STEP 0.4) and legacy migration via `git mv` (STEP 0.5) degrade gracefully.
-- The `Agent` tool in Claude Code supports passing inline context (the brainstorm report) in the invocation prompt. The architecture relies on this capability for inter-step data flow.
-- The Superpowers plugin integration is optional and opportunistic. Detection is orchestrator-side (via `.claude/skills/superpowers` or `settings.json`); no subagent declares a dependency on it. See `integrations.md` for the full detection and capability scope.
+- The Claude Code harness resolves the generic model aliases (`opus`, `sonnet`, `haiku`, `inherit`) to the latest matching model at dispatch time. The skill never observes the resolved version.
+- "Target project" is a separate repository from this source repository; the Quick Start does not explicitly forbid running the skill against itself, but the dogfooded `docs/` tree implies the workflow is self-hostable.
+- The Superpowers plugin is genuinely optional — no canary explicitly verifies its absence; the orchestrator simply checks for `.claude/skills/superpowers` or `.claude/settings.json` and proceeds either way.
+- The repository's local `.claude/` directory is dev-time configuration for this project and is not part of the deployable skill surface.
