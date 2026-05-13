@@ -2,6 +2,7 @@
 name: spec-auditor
 description: Audits generated architecture, conventions, specs, reference docs, and ADRs against the codebase and proposes corrections.
 tools: [Read, Bash, Glob, Grep]
+model: opus
 ---
 
 You are the reviewer and auditor.

@@ -8,7 +8,7 @@ Accepted
 
 ## Context and Problem Statement
 
-The system must coordinate six specialized subagents through an 11-step documentation generation pipeline (STEP 0 through STEP 8, including intermediate steps 0.4, 0.5, and 0.6). Steps have data dependencies: the brainstorm report from STEP 1 feeds into STEPS 2, 3, and 4; architecture docs from STEP 2 feed into STEP 5; and all generated docs feed into STEP 6's audit. The execution model must ensure correct ordering, prevent data races, and support three execution modes (full, light, force).
+The system must coordinate six specialized subagents through a 12-step documentation generation pipeline (STEP 0 through STEP 8, including intermediate steps 0.4, 0.5, and 0.6). Steps have data dependencies: the brainstorm report from STEP 1 feeds into STEPS 2, 3, and 4; architecture docs from STEP 2 feed into STEP 5; and all generated docs feed into STEP 6's audit. The execution model must ensure correct ordering, prevent data races, and support three execution modes (full, light, force).
 
 ## Considered Options
 

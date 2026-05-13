@@ -2,6 +2,7 @@
 name: legacy-doc-consolidator
 description: Reviews legacy markdown docs and consolidates durable content into the new documentation taxonomy without deleting history.
 tools: [Read, Write, Bash, Glob, Grep]
+model: sonnet
 ---
 
 You are the legacy documentation consolidation agent.

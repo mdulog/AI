@@ -1,314 +1,283 @@
 # Product Behavior Overview
 
-This document describes the externally visible behavior and feature areas of `generate-knowledge-base`. It covers what the tool does from the user's perspective -- execution modes, detection logic, idempotency guarantees, migration behavior, and the audit/correction workflow. For structural and component-level details, see [architecture/overview.md](../architecture/overview.md) and [architecture/components.md](../architecture/components.md).
+This document describes what `generate-knowledge-base` does from the user's perspective: the public command surface, the workflows a user actually runs, the files that appear in their project as a result, the prompts they will see, and the guarantees the skill makes about safety and idempotency.
+
+For structural details (orchestrator internals, agent topology, parallelism rules), see [`architecture/overview.md`](../architecture/overview.md) and [`architecture/components.md`](../architecture/components.md). For the conventions enforced on generated docs, see [`conventions/`](../conventions/).
+
+## Product Purpose
+
+Most repositories accumulate institutional knowledge unevenly: some of it sits in code, some in scattered READMEs, some only in contributors' heads. `generate-knowledge-base` produces and maintains a single, structured knowledge base under `docs/` that:
+
+- captures what the system is and how its parts fit together (architecture)
+- captures the rules a contributor must follow when changing it (conventions)
+- captures the externally visible product behavior (specs)
+- records significant past decisions and their context (ADRs)
+- documents APIs and other lookup surfaces when applicable (reference)
+
+The intent is to compress onboarding time and make the project's CLAUDE.md context-aware: after a run, Claude Code in the target project automatically reads the right docs before making changes, because the orchestrator wires those references into `CLAUDE.md` (see orchestrator § STEP 8).
+
+The skill is content-only — it does not generate code, run tests, push commits, or deploy anything. See [Out of Scope](#out-of-scope) for the explicit boundary.
+
+## Public Surface
+
+The skill is invoked through a single Claude Code custom slash command in the target project:
+
+```
+/generate-knowledge-base [output-root] [mode=full|light|force]
+```
+
+Both arguments are optional. They are parsed from `$ARGUMENTS` by pattern match (orchestrator § Arguments and § Execution mode), not by a formal argument parser:
+
+| Argument | Default | Meaning |
+|---|---|---|
+| `output-root` | `docs` | Folder under the project root where all generated docs are written. |
+| `mode=...` | `full` | Workflow execution mode — see [Execution Modes](#execution-modes). |
+
+Examples:
+
+```
+/generate-knowledge-base
+/generate-knowledge-base docs mode=light
+/generate-knowledge-base apps/api/docs
+/generate-knowledge-base mode=force
+```
+
+There is no programmatic, HTTP, or library entry point. The slash command IS the product surface.
 
 ## Execution Modes
 
-The tool supports three execution modes that control which workflow steps run. The mode is passed as part of `$ARGUMENTS` (e.g., `/generate-knowledge-base docs mode=light`). When no mode is specified, `full` is used.
+Three modes select which steps run. The mode-permitted step set is intersected with STEP 0.4's git-diff scoping (see [Idempotency](#idempotency-and-re-runs)) — the more restrictive wins.
 
 ### Full Mode (default)
 
-Runs the complete workflow:
-
-1. Pre-flight checks (project type detection, agent verification, CLAUDE.md initialization, folder creation)
-2. Idempotency pre-flight (git-diff scoping and manual edit detection)
-3. Legacy doc migration and consolidation
-4. Codebase brainstorm (deep analysis producing a structured report)
-5. Architecture doc generation (overview, components, integrations, API reference)
-6. Conventions extraction (coding, testing, naming, API conventions)
-7. Specs generation (product behavior and feature area documentation)
-8. ADR creation (3-5 architectural decision records in MADR format)
-9. Audit (all generated docs reviewed against real code; prioritized correction list produced)
-10. Correction application (user reviews and confirms corrections before any edits)
-11. CLAUDE.md finalization (update references to generated docs)
-12. Run summary (persistent artifact written to `summary/latest-run.md` and timestamped copy)
-
-Full mode is appropriate when running for the first time, after significant codebase changes, or when a thorough documentation refresh is needed.
+Runs every step: pre-flight, idempotency check, legacy migration, legacy consolidation, brainstorm, architecture, conventions, specs, ADRs, audit, correction, CLAUDE.md finalization, and run summary. Use it for first-time onboarding, after substantial codebase changes, or when a thorough refresh is needed.
 
 ### Light Mode
 
-Runs only essential steps: pre-flight, idempotency check, brainstorm, architecture docs, conventions, specs, and CLAUDE.md finalization. Specifically skipped:
+Runs the essentials and skips everything that is either historical (legacy doc handling) or human-in-the-loop (audit and corrections). Specifically skipped (per each step's skip clause in the orchestrator — § STEP 0.5, § STEP 0.6, § STEP 5, § STEP 6, § STEP 7):
 
-- Legacy doc migration (STEP 0.5)
-- Legacy doc consolidation (STEP 0.6)
-- ADR creation (STEP 5)
-- Audit (STEP 6)
-- Correction application (STEP 7)
+- STEP 0.5 — legacy doc migration
+- STEP 0.6 — legacy doc consolidation
+- STEP 5 — ADR creation
+- STEP 6 — audit
+- STEP 7 — correction application
 
-Light mode is useful for a quick documentation refresh when legacy migration and deep audit are unnecessary. Users can explicitly request any skipped step even in light mode.
+Always-on steps in light mode: STEP 0, STEP 0.4, STEP 1, STEP 2, STEP 3, STEP 4, STEP 8 (orchestrator § Execution mode). Each individual skipped step can be force-run by an explicit user request.
 
 ### Force Mode
 
-Identical to full mode in terms of which steps execute, but bypasses the STEP 0.4 idempotency pre-flight entirely -- both git-diff scoping and manual edit confirmation are skipped. All steps run unconditionally.
+Runs the same step set as full mode, but bypasses the STEP 0.4 git-diff scoping and the uncommitted-edit confirmation entirely (orchestrator § Execution mode). Use it when the docs folder has drifted from git — for example, when a previous run completed but the output was never committed.
 
-Use force mode when the docs folder is out of sync with git -- for example, when a previous run completed but the output was never committed, or when the git history does not accurately reflect the documentation state.
+## User-Facing Workflows
 
-## Project Type Auto-Detection
+### First Run on a Fresh Project
 
-At startup (STEP 0), the orchestrator inspects repository files to determine the project type. The detected type influences how subagents adapt their analysis strategy. Detection follows a priority order:
+1. Copy the skill files into `.claude/commands/` and `.claude/agents/` (one-time, see [Deployment](#deployment-model)).
+2. Invoke `/generate-knowledge-base` from the target project root.
+3. Pre-flight detects `PROJECT_TYPE`, verifies all six agent files, and either runs `/init` to create `CLAUDE.md` or migrates the existing one to the new taxonomy (orchestrator § STEP 0 — Check and migrate CLAUDE.md).
+4. STEP 0.4 finds no prior docs commit and skips git-diff scoping; all subsequent steps proceed (orchestrator § STEP 0.4 — Step scoping via git diff).
+5. STEPS 1-8 run end to end. The brainstorm report is built first; architecture, conventions, specs, and ADRs are written in sequence; the audit produces a correction list; the user confirms which corrections to apply; CLAUDE.md is finalized; a run summary is persisted.
 
-| Detected Type | Trigger Condition |
+Expected output: a populated `docs/` tree (see [Output Contract](#output-contract)) and an updated `CLAUDE.md` referencing it.
+
+### Re-Run with No Source Changes
+
+When the user re-runs the skill and the codebase has not changed since the last docs commit:
+
+1. STEP 0.4 captures the last docs SHA and runs `git diff $LAST_SHA HEAD --name-only` (orchestrator § STEP 0.4 — Step scoping via git diff).
+2. With no source changes detected, the orchestrator prompts: *"no changes detected since last run — Force re-run? [y/N]"* (orchestrator § STEP 0.4 — Step scoping via git diff).
+3. **N** — exit immediately. Docs are untouched.
+4. **Y** — run all steps unconditionally.
+
+If only files inside `OUTPUT_ROOT/` changed, STEP 8 runs alone (orchestrator § STEP 0.4 — Step scoping via git diff) — just CLAUDE.md is reconciled against the existing docs.
+
+### Re-Run with Source Changes
+
+When source files outside `OUTPUT_ROOT/` have changed since the last docs commit, STEP 0.4 selects "STEPS 1-5 + 8" (plus 0.5, 0.6, 6, and 7 when in full mode — orchestrator § STEP 0.4 — Step scoping via git diff). The orchestrator reports the inferred step set before proceeding so the user can see what will actually re-run.
+
+### Recovery via Force Mode
+
+When the docs folder has been hand-edited or generated outside of git, STEP 0.4's git-diff scoping is misleading. `mode=force` bypasses both checks (orchestrator § Execution mode) and runs the full pipeline unconditionally. Use this after manual cleanup or when restoring from a non-git source.
+
+## Output Contract
+
+After a successful run, the user can expect this layout under `OUTPUT_ROOT/` (orchestrator § Documentation structure and § Documentation intent):
+
+| Path | Purpose |
 |---|---|
-| `frontend` | `package.json` exists with dependencies including any of: `react`, `next`, `@angular/core`, `@angular/cli`, `vue`, `nuxt`, `astro` |
-| `backend-dotnet` | Any `*.csproj` or `*.sln` file exists, or `Program.cs` / `Startup.cs` is found |
-| `backend-node` | `package.json` exists with dependencies including: `express`, `fastify`, `koa`, `nestjs`, `hapi` |
-| `mixed` | Both frontend and backend indicators are present |
+| `architecture/overview.md` | System purpose, architectural style, major flows, deployment shape. |
+| `architecture/components.md` | Major modules, responsibilities, dependency boundaries. |
+| `architecture/integrations.md` | External services, databases, queues, schedulers, auth. |
+| `architecture/decisions/NNNN-*.md` | MADR-format ADRs (full mode only). |
+| `conventions/coding.md` | Coding standards verifiable in the repo. |
+| `conventions/testing.md` | Testing conventions and structure. |
+| `conventions/naming.md` | Naming and casing rules. |
+| `conventions/api.md` | API conventions (when the project has APIs). |
+| `specs/00-overview.md` | Product behavior overview (this document). |
+| `specs/*.md` | Additional feature specs (only when clearly supported by the codebase). |
+| `reference/api.md` | API reference (only when the project exposes or consumes APIs). |
+| `plans/` | Reserved for human-authored implementation plans; never auto-managed (the orchestrator creates the folder via STEP 0 but no step writes to it). |
+| `summary/latest-run.md` | Latest run summary; overwritten every run. |
+| `summary/runs/YYYYMMDD-HHMMSS.md` | Timestamped run history; never overwritten. |
 
-### Mixed Project Handling
+For per-document content expectations, see the architecture and conventions docs themselves.
 
-When `mixed` is detected and no explicit `OUTPUT_ROOT` was provided via `$ARGUMENTS`, the workflow stops and asks the user to either:
+In addition to `OUTPUT_ROOT/`, the project-root `CLAUDE.md` is updated in STEP 0 (initial migration) and STEP 8 (final reconciliation). See [CLAUDE.md Integration](#claudemd-integration).
 
-- Re-run the command from within the specific app subdirectory, or
-- Pass an explicit output root argument to scope the run (e.g., `/generate-knowledge-base apps/api/docs`)
+## Interactive Moments
 
-If `$ARGUMENTS` is set (providing an output root), a `mixed` detection proceeds normally -- the output root provides sufficient scoping.
+The skill is mostly autonomous. Three points stop and ask the user.
 
-**Edge case:** If `$ARGUMENTS` contains only a mode flag (e.g., `mode=light`) without an output root, `$ARGUMENTS` is non-empty but no output root is provided. The `mixed` guard may incorrectly proceed in this scenario because it checks only whether `$ARGUMENTS` is set, not whether it contains a valid output root path.
+### STEP 0 — Mixed Project Without Output Root
 
-### Detection Reporting
+If `PROJECT_TYPE = mixed` is detected (both frontend and backend indicators present) AND `$ARGUMENTS` is empty, the orchestrator stops and asks the user to either re-run from a specific app subdirectory or pass an explicit output root (orchestrator § STEP 0 — Detect PROJECT_TYPE). When an output root is supplied, the run proceeds without prompting.
 
-After detection, the orchestrator reports which `PROJECT_TYPE` was chosen and which specific files led to that decision, giving the user visibility into the classification logic.
+### STEP 0 — Missing Required Agent
 
-## Idempotency via Git-Diff Scoping and Manual Edit Detection
+Pre-flight verifies that all six agent files exist in `.claude/agents/` (orchestrator § STEP 0 — Verify required agents). If any are missing, the workflow hard-stops and reports:
 
-STEP 0.4 runs two checks to determine whether a full re-run is necessary. Both checks are skipped entirely in `force` mode.
+1. which agent file is missing
+2. which file path was expected
+3. which step cannot continue
+4. what the user needs to create or fix
 
-### Check 1: Step Scoping via Git Diff
+The orchestrator never silently falls back to executing agent work in the supervisor context (orchestrator § Hard requirement).
 
-The orchestrator queries git for the most recent commit that touched the output root:
+### STEP 0.4 — Uncommitted Doc Edits
 
-```
-git log -1 --format="%H" -- "$OUTPUT_ROOT"/
-```
+When the docs folder has uncommitted changes at the start of a run (and `mode != force`), the orchestrator lists the affected files and prompts:
 
-Based on the result:
+> These files have uncommitted changes (possible manual edits): `[list]`. Agents will treat current file contents as canonical and apply incremental updates, but cannot guarantee manual edits in rewritten sections are preserved. Continue? [y/N]
 
-| Scenario | Behavior |
-|---|---|
-| **No prior docs commit** (empty result) | First run. All steps proceed. |
-| **Prior commit found** | The SHA is captured as `LAST_SHA`. A diff is run against `HEAD` to identify changed paths. |
+(orchestrator § STEP 0.4 — Manual edit detection)
 
-When a prior commit exists, changed paths are mapped to steps:
+- **N** — exit. No files are touched.
+- **Y** — proceed. Existing file contents are read as the baseline for incremental updates.
 
-| Changed Paths | Steps That Run |
-|---|---|
-| Source code files changed (outside `OUTPUT_ROOT/`) | STEPS 1-5 + 8 in light mode; STEPS 0.5, 0.6, 1-7, 8 in full mode |
-| Only doc files changed (inside `OUTPUT_ROOT/`) | STEP 8 only |
-| Nothing changed | User is prompted: "Force re-run? [y/N]". N exits; Y runs all steps. |
+### STEP 0.4 — No Changes Detected
 
-The step set from git-diff scoping is intersected with the mode's permitted steps -- a step excluded by either mechanism is skipped. The orchestrator reports which steps will be skipped and why before proceeding.
+If no source or doc changes are found since the last docs commit, the orchestrator prompts: "no changes detected since last run — Force re-run? [y/N]" (orchestrator § STEP 0.4 — Step scoping via git diff). N exits, Y runs all steps.
 
-### Check 2: Manual Edit Detection
+### STEP 7 — Correction Confirmation
 
-The orchestrator checks for uncommitted changes in the docs folder:
+In full mode, after the audit (STEP 6) returns a prioritized correction list, the orchestrator presents the High and Medium findings to the user and waits for confirmation before touching any file (orchestrator § STEP 7). Low-priority findings are reported but never applied. The user can selectively confirm which High/Medium items to apply.
 
-```
-git diff HEAD -- "$OUTPUT_ROOT"/
-```
+This is the only point in the workflow where docs files are modified based on user choice rather than autonomous logic.
 
-If uncommitted changes are found, the affected files are listed and the user is warned:
+## Idempotency and Re-Runs
 
-> These files have uncommitted changes (possible manual edits): [list].
-> Agents will treat current file contents as canonical and apply incremental updates, but cannot guarantee manual edits in rewritten sections are preserved. Continue? [y/N]
+The skill is designed for repeated execution. Three guarantees keep re-runs cheap and predictable.
 
-- **N** exits immediately without touching any files.
-- **Y** proceeds, using the current file contents (including manual edits) as the baseline for incremental updates.
+### Stable File Paths
 
-If no uncommitted changes exist, the workflow proceeds without prompting.
+Filenames do not drift between runs. The same `architecture/overview.md`, `conventions/coding.md`, etc. are written each time, so links and CLAUDE.md references stay valid (orchestrator § When writing files).
 
-### Degraded Mode (No Git)
+### Incremental Updates Over Rewrites
 
-When git is unavailable or the project is not a git repository, the orchestrator logs a warning, skips both idempotency checks, and runs all steps unconditionally.
+Agents read existing file contents as the baseline and apply incremental updates rather than full rewrites where possible (orchestrator § When writing files and § STEP 7). Hand edits in unaffected sections survive a re-run; sections that are regenerated may not preserve manual edits, which is why STEP 0.4 warns the user before proceeding.
 
-## Legacy Doc Migration and Consolidation
+### Git-Diff Scoping
 
-These features handle the transition from older documentation layouts to the current folder taxonomy. Both run only in full mode (unless the user explicitly requests them in light mode).
+When git is available, STEP 0.4 uses `git log` and `git diff` against the last docs commit to determine the minimum set of steps that need to re-run (orchestrator § STEP 0.4 — Step scoping via git diff). Source-only changes run STEPS 1-5 + 8 (plus 6, 7, 0.5, 0.6 in full mode); docs-only changes collapse to STEP 8; no changes triggers a force-rerun prompt. The result is intersected with the mode's permitted step set.
 
-### STEP 0.5: Safe File Migration
+When git is unavailable or the project is not a git repo, both idempotency checks are skipped and all steps run (orchestrator § STEP 0.4 — Degraded mode). The skill never silently produces stale output because of a missing tool.
 
-Before any new document generation, the orchestrator checks for legacy file and folder layouts and moves them to the new structure. Migration follows strict safety rules:
-
-- **Never overwrites** an existing file in the new structure.
-- **Never deletes** content without first moving or preserving it.
-- **Prefers `git mv`** when inside a git repository to preserve history; falls back to filesystem moves when necessary.
-- **Reports conflicts** without resolving them when both old and new locations contain different files.
-
-Specific legacy paths detected and migrated:
-
-| Legacy Path | New Path | Condition |
-|---|---|---|
-| `OUTPUT_ROOT/decisions/` | `OUTPUT_ROOT/architecture/decisions/` | Target is empty or missing |
-| `OUTPUT_ROOT/specs/01-architecture.md` | `OUTPUT_ROOT/architecture/overview.md` | Target does not exist |
-| `OUTPUT_ROOT/specs/03-api.md` | `OUTPUT_ROOT/reference/api.md` | Target does not exist |
-
-Plans and existing feature specs are left in place -- they are not migrated.
-
-After migration, the orchestrator reports every file or folder moved, every conflict skipped, and every legacy file still in place.
-
-### STEP 0.6: Content Consolidation
-
-After file migration, the `legacy-doc-consolidator` subagent performs an editorial pass over remaining legacy markdown files:
-
-1. **Classification**: Each piece of content is classified as architecture, conventions, spec, plan, reference, or unresolved.
-2. **Merging**: Durable knowledge is normalized and summarized into canonical docs in the new structure. Content is not copied verbatim -- it is distilled.
-3. **Splitting**: When a legacy file mixes concerns (e.g., architecture knowledge mixed with feature specs), content is split by destination category.
-4. **Preservation**: Legacy files are never deleted. They remain as historical context until a human removes them.
-5. **Reporting**: A consolidation report lists every file reviewed, every canonical doc updated, and every unresolved item.
-
-Uncertain or unverifiable content is marked unresolved and left in the legacy file for human review.
-
-## Human-in-the-Loop Audit and Correction Workflow
-
-The audit and correction workflow (STEPS 6-7) is the only part of the pipeline that requires explicit user confirmation before modifying files. It runs only in full mode.
-
-### STEP 6: Audit (Read-Only)
-
-The `spec-auditor` subagent reviews every generated doc against the real codebase. For each file, it checks:
-
-1. Contradictions with real code
-2. Assumptions that cannot be verified
-3. Missing information that should be present
-4. Sections that are vague or overly generic
-5. Content that belongs in a different doc category
-
-The audit produces a prioritized correction list with each issue labeled **High**, **Medium**, or **Low**. The auditor never modifies files -- it only reports findings.
-
-### STEP 7: Correction Application
-
-Before applying any correction, the orchestrator:
-
-1. Presents the full list of High and Medium priority corrections to the user.
-2. Waits for the user to confirm which corrections to apply.
-3. Applies only confirmed corrections.
-
-Correction rules:
-
-- Only High and Medium priority items are applied (Low items are reported but not acted on).
-- Documents are not rewritten unnecessarily -- existing content is preserved where possible.
-- ADR edits are kept minimal, limited to clear factual or formatting issues.
-- After editing, a summary of what changed in each file is provided.
-
-## CLAUDE.md Integration
-
-The workflow enriches the target project's `CLAUDE.md` at two points: during pre-flight (STEP 0) and during finalization (STEP 8).
-
-### Pre-Flight (STEP 0)
-
-If `CLAUDE.md` does not exist, the orchestrator runs `/init` to create one and then improves the generated file. If it already exists, the orchestrator migrates it to the new documentation taxonomy:
-
-- Preserves all project-specific guidance, domain language, and non-documentation rules.
-- Detects and updates legacy documentation references (e.g., `OUTPUT_ROOT/decisions/` becomes `OUTPUT_ROOT/architecture/decisions/`; `OUTPUT_ROOT/specs/01-architecture.md` becomes `OUTPUT_ROOT/architecture/overview.md`).
-- Updates existing matching sections in place rather than appending duplicate headings.
-- Adds missing sections from a standard template covering Architecture, Conventions, Specs, ADR Workflow, and Documentation.
-
-### Finalization (STEP 8)
-
-After all documentation is generated, the orchestrator reconciles `CLAUDE.md` one final time. It ensures these specific sections exist and reference the correct output paths:
-
-- `## Architecture` — referencing `OUTPUT_ROOT/architecture/overview.md`, `components.md`, `integrations.md`
-- `## Conventions` — referencing `OUTPUT_ROOT/conventions/`
-- `## Specs` — referencing `OUTPUT_ROOT/specs/`
-- `## ADR Workflow` — referencing `OUTPUT_ROOT/architecture/decisions/` with MADR naming rules
-- `## Documentation` — cross-referencing all of the above
-
-For each section: if a matching heading already exists, it is updated in place. If a section is missing entirely, it is appended from a standard template. Any remaining legacy path references (e.g., `decisions/` instead of `architecture/decisions/`) are rewritten. Unrelated project-specific guidance already in `CLAUDE.md` is preserved.
-
-The net effect is that after a run, Claude Code automatically reads the right documentation context before making changes in the target project, because `CLAUDE.md` directs it to the generated docs.
-
-## Incremental Doc Updates on Re-Runs
-
-The workflow is designed for repeated execution. On subsequent runs:
-
-- **Filenames are kept stable** between runs. The same doc paths are used each time.
-- **Existing content is preserved** when it is still accurate. Agents prefer incremental edits over full rewrites.
-- **New information is merged** into existing documents rather than overwriting them.
-- **Idempotency scoping** (STEP 0.4) avoids redundant work when source code has not changed.
-- **Manual edits are respected** as the current baseline -- agents read the existing file contents and apply incremental updates on top of them (though preservation of manual edits in rewritten sections is not guaranteed, which is why the user is warned).
-
-The recommended workflow after each run is to commit the output:
+The recommended workflow after each run is to commit the result so the next run has a clean baseline:
 
 ```bash
 git add docs/ CLAUDE.md
 git commit -m "docs: update knowledge base"
 ```
 
-This establishes the baseline that STEP 0.4 uses on the next run to determine what changed.
+## Behavioral Guarantees
 
-## Run History with Timestamped Summaries
+The orchestrator and agent contracts give the user the following guarantees.
 
-Every run produces two summary artifacts:
+### Read-Only Agents Cannot Write
 
-| Path | Purpose |
+The `spec-brainstormer` (STEP 1) and `spec-auditor` (STEP 6) agents are scoped to read-only tools — their YAML frontmatter omits `Write`. This is enforced by the Claude Code harness at the tool level, not just by prose in the prompt. The brainstormer returns a structured analysis; the auditor returns a prioritized correction list. Neither can modify a file even if instructed to.
+
+### Legacy Migrations Never Overwrite
+
+STEP 0.5 moves legacy doc paths (`OUTPUT_ROOT/decisions/`, `OUTPUT_ROOT/specs/01-architecture.md`, `OUTPUT_ROOT/specs/03-api.md`) into the new taxonomy only when the destination is empty (orchestrator § STEP 0.5). When both the legacy and new locations contain different files, the conflict is reported and both files are left in place — the orchestrator never auto-resolves a conflict by overwriting.
+
+STEP 0.6 (legacy consolidation) follows the same rule for content: legacy files are never deleted; durable content is distilled into canonical docs while the legacy file remains for human review (orchestrator § STEP 0.6).
+
+### ADR Numbering is Collision-Free
+
+ADR numbering is centralized in `adr-writer` (STEP 5). Before invoking the agent, the orchestrator runs `git pull` (or equivalent) to ensure the local `architecture/decisions/` folder reflects the latest remote state (orchestrator § STEP 5). Parallel ADR creation is explicitly forbidden unless a single coordinator owns numbering (orchestrator § STEP 5). Two contributors running the workflow at the same time will not collide on `NNNN-*.md` filenames.
+
+### CLAUDE.md is Migrated, Not Replaced
+
+When `CLAUDE.md` already exists, the orchestrator updates matching sections in place rather than appending duplicates (orchestrator § STEP 0 — Check and migrate CLAUDE.md). Project-specific guidance, domain language, and non-documentation rules are preserved. Legacy doc references are rewritten to point at the new taxonomy. STEP 8 reconciles a final time after all docs are generated (orchestrator § STEP 8).
+
+### Every Run Persists a Summary
+
+A run summary is written to `summary/latest-run.md` (overwritten) and a timestamped copy at `summary/runs/YYYYMMDD-HHMMSS.md` (never overwritten) on every run (orchestrator § Final run summary). The summary records the mode used, detected `PROJECT_TYPE`, agents invoked, all files created/modified/moved/skipped, migration actions, conflicts, remaining assumptions, and recommended next steps (orchestrator § Final run summary).
+
+### Missing Agents Halt the Run
+
+The orchestrator never silently performs agent work in the supervisor context. If a required agent file is unavailable (STEP 0 verification, or any step's invocation), the workflow stops immediately and reports the missing path, the affected step, and what the user needs to fix (orchestrator § Hard requirement).
+
+## Project Type Auto-Detection
+
+At pre-flight, the orchestrator inspects repository markers to set `PROJECT_TYPE`, which subagents use to adapt their analysis. Detection priority (orchestrator § STEP 0 — Detect PROJECT_TYPE):
+
+| Detected Type | Trigger |
 |---|---|
-| `OUTPUT_ROOT/summary/latest-run.md` | Always overwritten with the most recent run's summary |
-| `OUTPUT_ROOT/summary/runs/YYYYMMDD-HHMMSS.md` | Timestamped historical copy; never overwritten |
+| `frontend` | `package.json` has any of `react`, `next`, `@angular/core`, `@angular/cli`, `vue`, `nuxt`, `astro` in dependencies or devDependencies |
+| `backend-dotnet` | Any `*.csproj`/`*.sln`, or `Program.cs`/`Startup.cs` exists |
+| `backend-node` | `package.json` has any of `express`, `fastify`, `koa`, `nestjs`, `hapi` |
+| `mixed` | Both frontend and backend indicators present |
 
-Each run summary includes:
+The orchestrator reports the detected type and the specific files that drove the decision before continuing.
 
-- Execution mode used
-- Detected `PROJECT_TYPE`
-- Agents invoked
-- All files created, modified, moved, or intentionally skipped (with paths)
-- Migration actions taken
-- Conflicts or unresolved items
-- Remaining assumptions or known gaps
-- Recommended next steps for human review
+## CLAUDE.md Integration
 
-The timestamped naming scheme (`YYYYMMDD-HHMMSS`) uses the format year-month-day-hour-minute-second, producing a naturally sortable history of all runs.
+`CLAUDE.md` in the target project is touched at two well-defined points.
 
-A console summary is also displayed at the end of each run. It covers the same fields as the file artifact, plus two additional items not written to the file: a confirmation that `summary/latest-run.md` and the timestamped copy were written, and a suggested git commit command for capturing the documentation baseline in history.
+### STEP 0 — Initial Migration or Init
+
+If `CLAUDE.md` does not exist, the orchestrator runs `/init` and then improves the result. If it exists, the orchestrator migrates it to the new doc taxonomy: existing matching sections (`## Architecture`, `## Conventions`, `## Specs`, `## ADR Workflow`, `## Documentation`) are updated in place; missing sections are appended from a standard template; legacy path references are rewritten (orchestrator § STEP 0 — Check and migrate CLAUDE.md). All non-documentation guidance already in the file is preserved.
+
+### STEP 8 — Final Reconciliation
+
+After all docs are generated, STEP 8 reconciles `CLAUDE.md` one final time so its references reflect what was actually produced — including `architecture/`, `conventions/`, `specs/`, `architecture/decisions/`, and `reference/` when reference docs exist (orchestrator § STEP 8). Any remaining legacy references are rewritten; matching sections are updated in place rather than duplicated.
+
+The net effect is that after every run, Claude Code in the target project reads the right doc files automatically because `CLAUDE.md` directs it to them.
 
 ## Deployment Model
 
-`generate-knowledge-base` is not a standalone application. It is a Claude Code skill that is deployed into a target project by copying files:
-
-### Required Files
-
-```
-Source (this repo)                           Target project
-generate-knowledge-base.md             -->   .claude/commands/generate-knowledge-base.md
-Agents/spec-brainstormer.md            -->   .claude/agents/spec-brainstormer.md
-Agents/spec-writer.md                  -->   .claude/agents/spec-writer.md
-Agents/conventions-writer.md           -->   .claude/agents/conventions-writer.md
-Agents/legacy-doc-consolidator.md      -->   .claude/agents/legacy-doc-consolidator.md
-Agents/adr-writer.md                   -->   .claude/agents/adr-writer.md
-Agents/spec-auditor.md                 -->   .claude/agents/spec-auditor.md
-```
-
-The orchestrator goes into `.claude/commands/` (making it available as `/generate-knowledge-base`). The six subagent files go into `.claude/agents/`.
-
-### Agent Verification at Startup
-
-At the beginning of every run (STEP 0), the orchestrator verifies that all six agent files exist in `.claude/agents/`. If any are missing, the workflow hard-stops immediately with:
-
-- Which agent file is missing
-- Which file path was expected
-- Which step cannot continue
-- What the user needs to create or fix
-
-The workflow never silently falls back to performing agent work in the orchestrator context.
-
-### Deployment Commands
+The skill is not a standalone application. It is deployed into a target project by copying files (one-time setup):
 
 ```bash
-# From the target project root
 mkdir -p .claude/commands .claude/agents
 cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
 cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
 ```
 
-### Runtime Requirements
+After this, the slash command `/generate-knowledge-base` is available in the target project. The required runtime is the Claude Code harness; git is optional (it enables idempotency scoping and history-preserving migration). See `architecture/overview.md` for the full deployment and runtime shape.
 
-- **Claude Code** as the execution environment
-- **Opus 4.6 model** (declared in the orchestrator's frontmatter)
-- **Git** (optional; enables idempotency scoping and history-preserving migration)
+## Out of Scope
+
+The skill explicitly does NOT do any of the following:
+
+- **Generate or modify source code.** It only produces markdown under `OUTPUT_ROOT/` and edits `CLAUDE.md`.
+- **Run, build, or test the project.** The skill never executes the target's build/test commands.
+- **Commit or push to git.** It suggests a `git add`/`git commit` command at the end of a run, but the user runs it themselves (orchestrator § Final run summary).
+- **Deploy anything.** No infrastructure, no servers, no CI configuration.
+- **Auto-resolve legacy doc conflicts.** When the legacy and new locations both contain content, the conflict is reported, not merged.
+- **Delete legacy files.** Legacy docs are preserved as historical context until a human removes them (orchestrator § STEP 0.6).
+- **Apply Low-priority audit findings.** Only High and Medium items are eligible for application, and only after explicit user confirmation (orchestrator § STEP 6 and § STEP 7).
+- **Manage `OUTPUT_ROOT/plans/`.** The plans folder is reserved for human-authored implementation plans and is never auto-managed (orchestrator § Documentation intent).
+- **Run outside Claude Code.** There is no programmatic, HTTP, or CLI entry point separate from the slash command.
 
 ## Assumptions
 
-- The `$ARGUMENTS` string supports both a positional output-root value and a `mode=` key-value pair (e.g., `my-docs mode=light`). Parsing is handled by natural-language pattern matching at runtime, not a formal argument parser — the orchestrator checks for the `mode=` prefix to extract the mode, and uses the remaining portion as `OUTPUT_ROOT`.
-- The `YYYYMMDD-HHMMSS` timestamp in run history filenames uses the local timezone of the machine where Claude Code is running. The orchestrator does not specify UTC or a fixed timezone.
-- When the orchestrator detects `PROJECT_TYPE`, the dependency check for frontend frameworks scans both `dependencies` and `devDependencies` in `package.json`. The orchestrator's wording ("dependencies or devDependencies") confirms both are checked.
-- The `tooling` project type assigned by the orchestrator for this project (generate-knowledge-base itself) is not one of the four auto-detected types (frontend, backend-dotnet, backend-node, mixed). This suggests that when no detection rule matches, the orchestrator either falls through without setting a type or uses a context-specific override.
-- Light mode's skippable steps can be individually overridden by explicit user request. The orchestrator's language ("unless the user explicitly requests") applies to STEP 0.5, STEP 0.6, STEP 5, STEP 6, and STEP 7.
-- The audit workflow (STEPS 6-7) is the only human-in-the-loop gate. All other steps run to completion without user confirmation (aside from the STEP 0.4 prompts for uncommitted changes or no-changes-detected scenarios).
-- The Superpowers plugin integration mentioned in the orchestrator is optional and does not change any externally visible behavior. It is not covered in this spec because it has no user-facing behavioral impact.
+- `$ARGUMENTS` parsing is by natural-language pattern match — the orchestrator looks for the literal `mode=` prefix to extract the mode and treats the remainder as `OUTPUT_ROOT`. There is no formal argument parser, so unusual inputs (e.g., a path containing `mode=` as a substring) may be misclassified.
+- The `mixed` project-type guard checks whether `$ARGUMENTS` is non-empty, not whether it contains a valid output-root path. An invocation like `/generate-knowledge-base mode=light` against a mixed project will satisfy the guard even though no output root was supplied.
+- The `YYYYMMDD-HHMMSS` timestamp in `summary/runs/` uses the local timezone of the machine running Claude Code; the orchestrator does not specify UTC.
+- Light-mode skip conditions are individually overridable by an explicit user request (each of orchestrator § STEP 0.5, § STEP 0.6, § STEP 5, § STEP 6, and § STEP 7 says "unless the user explicitly requests").
+- The Superpowers plugin integration described in the orchestrator's § Superpowers usage is genuinely optional and produces no externally visible behavior change. It is therefore out of scope for this spec.
+- When `PROJECT_TYPE` matches none of the four documented detection rules (e.g., a documentation or tooling repo), behavior is determined ad hoc. The orchestrator does not enumerate fallback types in its detection rules.
+- "Manual edits in rewritten sections are not preserved" is a stated limitation of the incremental-update model; the precise heuristic for what counts as a rewritten section is not specified by the orchestrator.

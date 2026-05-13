@@ -2,7 +2,7 @@
 description: Generates and maintains a project knowledge base for an existing software project
 allowed-tools: [Read, Write, Bash, Agent]
 # accepted-arguments: [output-root-folder] [mode=full|light|force]
-model: claude-opus-4-6
+model: sonnet
 ---
 
 You are the documentation and knowledge-base orchestrator for this project.
@@ -10,11 +10,21 @@ You are the documentation and knowledge-base orchestrator for this project.
 You may use the Read, Write, and Bash tools as needed without asking for permission each time.
 Always start from the project root when resolving paths.
 
-Effort policy:
-- This workflow defaults to maximum effort.
-- As the first action, run `/effort max` before any other step when supported.
-- If `/effort` is unavailable, continue and behave as if maximum effort were required.
-- Do not lower effort during this workflow unless the user explicitly requests it.
+Model and effort policy:
+- The skill follows a token-hygiene rule on two axes — model (Sonnet / Opus / Haiku) and reasoning effort (low / medium / high / max).
+- Effort ladder, in order of escalation:
+  1. Sonnet + medium — default for orchestration and standard generation.
+  2. Sonnet + high — try this before escalating model.
+  3. Opus + high — truly hard tasks (deduplication, contradiction detection, compounding outputs).
+  4. Opus + max — rare, highest-stakes reasoning. No current step qualifies.
+  5. Haiku + low — narrow mechanical chores. No current step qualifies.
+- Per-agent **model** is declared in each agent's frontmatter `model:` field — single source of truth. Use generic aliases (`opus` / `sonnet` / `haiku` / `inherit`); never pin a specific version.
+- Per-step **effort** is set by the orchestrator via `/effort <level>` immediately before the relevant `Agent` dispatch:
+  - `/effort medium` at session start; keep medium for STEP 0–0.6, STEP 2, STEP 3, STEP 4, STEP 7, STEP 8.
+  - `/effort high` before invoking `spec-brainstormer` (STEP 1), `adr-writer` (STEP 5), and `spec-auditor` (STEP 6); revert to `medium` afterward.
+  - If `/effort` is unavailable in the harness, continue and behave as if the requested level were applied.
+- The user may override the default ladder by passing an explicit effort level; honor it.
+- Do not add per-step `model` overrides on `Agent` invocations — keep model selection in one place (agent frontmatter) to avoid drift.
 
 If $ARGUMENTS is provided, use it as OUTPUT_ROOT. Otherwise default to `docs`.
 
@@ -104,7 +114,7 @@ Run the following steps in order. Ask for clarification only if a blocker preven
 
 ## STEP 0 — Pre-flight check (project type, CLAUDE.md, agents, folders)
 
-- As the first action in this workflow, execute `/effort max` when supported before doing anything else.
+- As the first action in this workflow, execute `/effort medium` when supported before doing anything else (per the Model and effort policy).
 
 ### Detect PROJECT_TYPE
 
@@ -352,6 +362,8 @@ Important:
 
 ## STEP 1 — Brainstorm (must use agent)
 
+- Before invoking the agent, run `/effort high` (this is an Opus-tier agent per the Model and effort policy). After the agent returns, run `/effort medium` to revert.
+
 Use the `spec-brainstormer` subagent for this step.
 Do not complete this step in the main context.
 If the agent cannot be invoked, stop and report the failure.
@@ -443,6 +455,8 @@ The spec documents must:
 
 Skip this step when `mode=light` unless the user explicitly requests ADR generation.
 
+- Before invoking the agent, run `/effort high` (this is an Opus-tier agent per the Model and effort policy). After the agent returns, run `/effort medium` to revert.
+
 Use the `adr-writer` subagent for this step.
 Do not complete this step in the main context.
 If the agent cannot be invoked, stop and report the failure.
@@ -466,6 +480,8 @@ Do not parallelize ADR creation unless a single coordinator owns numbering and a
 ## STEP 6 — Audit docs (must use agent)
 
 Skip this step when `mode=light` unless the user explicitly requests an audit.
+
+- Before invoking the agent, run `/effort high` (this is an Opus-tier agent per the Model and effort policy). After the agent returns, run `/effort medium` to revert.
 
 Use the `spec-auditor` subagent for this step.
 Do not complete this step in the main context.

@@ -2,6 +2,7 @@
 name: spec-brainstormer
 description: Analyzes the repo and CLAUDE.md to understand purpose, layers, patterns, services, and integration points.
 tools: [Read, Bash, Glob, Grep]
+model: opus
 ---
 
 You are the analysis agent for this project.

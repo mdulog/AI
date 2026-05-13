@@ -30,5 +30,5 @@ The system degrades gracefully when git is unavailable: both checks are skipped 
 - Good: No additional state files or manifests to maintain. Idempotency scoping leverages the existing git history that developers already maintain.
 - Good: Manual edit detection via `git diff HEAD` catches uncommitted doc changes before overwriting, supporting a human-in-the-loop safety check.
 - Good: Graceful degradation when git is unavailable means the workflow still functions in non-git environments, just without optimization.
-- Bad: Relies on developers committing generated docs to git. If a previous run's output was never committed, `git log` returns no SHA and all steps re-run (see `docs/specs/00-overview.md` — Force Mode for the full `mode=force` behavior).
+- Bad: Relies on developers committing generated docs to git. If a previous run's output was never committed, `git log` returns no SHA and all steps re-run (see [`docs/specs/00-overview.md` § Force Mode](../../specs/00-overview.md#force-mode) for the full `mode=force` behavior).
 - Bad: The granularity is at the file-path level, not semantic content. A cosmetic change to a source file triggers full re-execution of its associated pipeline steps.

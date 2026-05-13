@@ -2,6 +2,7 @@
 name: adr-writer
 description: Identifies significant architectural decisions from the codebase and creates MADR-format ADR files in the architecture/decisions/ folder.
 tools: [Read, Write, Bash, Glob]
+model: opus
 ---
 
 You are the architectural decision record agent for this project.

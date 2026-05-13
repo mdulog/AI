@@ -2,6 +2,7 @@
 name: conventions-writer
 description: Extracts stable implementation conventions and project rules from the codebase and existing documentation.
 tools: [Read, Write, Bash, Glob, Grep]
+model: sonnet
 ---
 
 You are the conventions extraction agent for this project.
