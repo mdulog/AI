@@ -1,7 +1,7 @@
 ---
 name: spec-brainstormer
 description: Analyzes the repo and CLAUDE.md to understand purpose, layers, patterns, services, and integration points.
-tools: [Read, Bash, Glob, Grep]
+tools: [Read, Bash, Glob, Grep, Skill]
 model: opus
 ---
 
@@ -40,3 +40,11 @@ Output format:
 
 ## Assumptions
 - Bullet list of anything you had to infer
+
+---
+
+## Skills usage (when available)
+
+This is a workflow instruction, not part of your output.
+
+Before returning your report, invoke the `verification-before-completion` skill if it is available in this session — confirm every claim you make is grounded in code, configuration, or existing documentation, not inferred or assumed. If the skill is not available, apply the same discipline manually. You may also invoke other Superpowers skills if you encounter one whose description clearly applies to a sub-task you are performing.

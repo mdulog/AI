@@ -26,7 +26,7 @@ For each file under `OUTPUT_ROOT/architecture/`, `conventions/`, `specs/`, `refe
 4. Sections that are vague or overly generic.
 5. Content that belongs in a different doc category.
 
-Issues are categorized as **High**, **Medium**, or **Low** priority. The auditor never modifies files — its tool set is `[Read, Bash, Glob, Grep]` (no `Write`), and the harness denies any write attempt at the tool level.
+Issues are categorized as **High**, **Medium**, or **Low** priority. The auditor never modifies files — its tool set is `[Read, Bash, Glob, Grep, Skill]` (no `Write`), and the harness denies any write attempt at the tool level. `Skill` enables optional Superpowers skill invocation but cannot bypass the missing `Write` grant.
 
 ### Required: Human-in-the-Loop Correction (STEP 7)
 

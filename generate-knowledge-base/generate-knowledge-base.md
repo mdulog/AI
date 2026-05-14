@@ -72,15 +72,13 @@ Hard requirement:
 
 ### Superpowers usage (optional)
 
-If the Superpowers plugin is available for this project (for example, `.claude/skills/superpowers` exists or Superpowers skills are listed in `.claude/settings.json`), subagents MAY invoke Superpowers skills during their steps when helpful. Superpowers is optional and must never be treated as a required dependency for this workflow. In particular:
-- `spec-brainstormer` may use Superpowers analysis or exploration skills while building the repo model.
-- `spec-writer` may use Superpowers documentation or design skills while drafting architecture, reference, and spec documents.
-- `conventions-writer` may use Superpowers coding-style or refactoring skills while extracting conventions from the codebase.
-- `legacy-doc-consolidator` may use Superpowers summarization or classification skills when normalizing legacy docs into the new taxonomy.
-- `adr-writer` may use Superpowers ADR or architecture skills for structuring decisions, while still following MADR and this orchestrator’s rules.
-- `spec-auditor` may use Superpowers review skills to compare docs against code.
+If the Superpowers plugin is available for this project (for example, `.claude/skills/superpowers` exists or Superpowers skills are listed in `.claude/settings.json`), subagents invoke skills directly via the `Skill` tool granted in their frontmatter. Superpowers remains optional and must never be treated as a required dependency for this workflow — if the plugin is absent, agents proceed without skill invocation and apply the same disciplines manually.
 
-Superpowers skills must respect this orchestrator’s safety rules: do not overwrite canonical docs blindly, do not delete legacy files, and do not invent facts that are not supported by the codebase or existing documentation.
+Expected default behavior across every writing and auditing subagent:
+- **Every writer and auditor agent (`spec-brainstormer`, `spec-writer`, `conventions-writer`, `legacy-doc-consolidator`, `adr-writer`, `spec-auditor`) invokes `verification-before-completion`** before returning its step output, to ground every claim in code or existing documentation rather than inference. The agent prompts carry this directive — see each agent file's § Skills usage (when available) section.
+- Other Superpowers skills (e.g., `brainstorming`, `writing-plans`) MAY be invoked by an agent if it identifies one whose description clearly applies to a sub-task, but this is not prescribed per-agent. Hard-naming additional skills here would couple this orchestrator to a specific Superpowers version and create maintenance debt across plugin upgrades.
+
+Superpowers skills must respect this orchestrator's safety rules: do not overwrite canonical docs blindly, do not delete legacy files, and do not invent facts that are not supported by the codebase or existing documentation. The `verification-before-completion` discipline is a soft enforcement aid — STEP 6 (the auditor) is the real structural defense against unverified claims in `mode=full` runs.
 
 ### Safe parallelism policy
 
@@ -399,7 +397,14 @@ The `spec-writer` subagent must generate or update:
 - `OUTPUT_ROOT/architecture/overview.md`
 - `OUTPUT_ROOT/architecture/components.md`
 - `OUTPUT_ROOT/architecture/integrations.md`
-- `OUTPUT_ROOT/reference/api.md` when the project exposes or consumes meaningful APIs
+- `OUTPUT_ROOT/reference/api.md` **only** when the project actually exposes or consumes APIs. "API present" means at least one of these markers exists in the codebase:
+  - HTTP route handlers, controllers, or endpoint definitions (Express, FastAPI, Flask, ASP.NET, Gin, Rails, Spring, etc.)
+  - GraphQL schema definitions or resolvers
+  - gRPC `.proto` service definitions
+  - Public library exports when `PROJECT_TYPE` is library/sdk
+  - External API client code worth documenting (consumed APIs)
+
+  If none of these markers exist, the agent must **not** create `reference/api.md` — not as a content file, and not as a "no API here" stub or pointer. The `docs/reference/` folder remains tracked by its `.gitkeep`; an absent `api.md` is the correct shape for a project with no API surface. The agent's run report must explicitly state "Skipped `reference/api.md` — no API surface detected" so the omission is auditable.
 
 Requirements:
 - Use GitHub-Flavored Markdown
@@ -424,7 +429,7 @@ The `conventions-writer` subagent must generate or update:
 - `OUTPUT_ROOT/conventions/coding.md`
 - `OUTPUT_ROOT/conventions/testing.md`
 - `OUTPUT_ROOT/conventions/naming.md`
-- `OUTPUT_ROOT/conventions/api.md` when relevant
+- `OUTPUT_ROOT/conventions/api.md` **only** when the project has an API surface per the detection criteria in STEP 2 (HTTP route handlers, GraphQL schemas, gRPC services, public library exports for library/sdk projects, or documented consumed APIs). If no API surface is detected, the agent must **not** create this file — not as content, and not as a stub. The agent's run report must explicitly state "Skipped `conventions/api.md` — no API surface detected" so the omission is auditable.
 
 The conventions documents must:
 - capture stable, repeatable rules already evident in the codebase

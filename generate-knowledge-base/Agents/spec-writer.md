@@ -1,7 +1,7 @@
 ---
 name: spec-writer
 description: Generates architecture, reference, and spec documents from the brainstorm report, codebase, and existing docs.
-tools: [Read, Write, Bash, Grep]
+tools: [Read, Write, Bash, Grep, Skill]
 model: sonnet
 ---
 
@@ -37,13 +37,23 @@ When asked to generate architecture docs, write or update only the requested fil
 - `OUTPUT_ROOT/architecture/overview.md`
 - `OUTPUT_ROOT/architecture/components.md`
 - `OUTPUT_ROOT/architecture/integrations.md`
-- `OUTPUT_ROOT/reference/api.md` when the project exposes or consumes meaningful APIs
+- `OUTPUT_ROOT/reference/api.md` **only** when the project has an API surface (see API-presence rule below)
 
 Architecture/reference expectations:
 - `overview.md`: system purpose, architectural style, major flows, deployment and runtime shape, important constraints
 - `components.md`: major modules/services, responsibilities, boundaries, dependency flow, communication paths
 - `integrations.md`: databases, queues, external APIs, auth providers, storage, messaging, schedulers, background processing
 - `reference/api.md`: external-facing APIs or consumed APIs, grouped by domain where possible; include auth, versioning, error handling, and important request/response patterns when verifiable
+
+API-presence rule (load-bearing):
+`reference/api.md` is generated **only** when at least one of these markers exists in the codebase:
+- HTTP route handlers, controllers, or endpoint definitions (Express, FastAPI, Flask, ASP.NET, Gin, Rails, Spring, etc.)
+- GraphQL schema definitions or resolvers
+- gRPC `.proto` service definitions
+- Public library exports when `PROJECT_TYPE` is library/sdk
+- External API client code worth documenting (consumed APIs)
+
+If none of these markers exist, do **not** create `reference/api.md` — not as a content file, and not as a "no API here" stub or pointer. The `docs/reference/` folder is tracked by its `.gitkeep`; an absent `api.md` is the correct shape for a project with no API surface. Explicitly include in your run report: "Skipped `reference/api.md` — no API surface detected" so the omission is auditable.
 
 When asked to generate specs, write or update only the requested files, typically:
 - `OUTPUT_ROOT/specs/00-overview.md`
@@ -58,3 +68,11 @@ At the end of your run, report:
 - Which files you created or updated
 - Key points from each file
 - All assumptions you recorded
+
+---
+
+## Skills usage (when available)
+
+This is a workflow instruction, not part of your output.
+
+Before declaring your generated files complete, invoke the `verification-before-completion` skill if it is available in this session — confirm every claim in each file is grounded in code, configuration, or existing documentation, not inferred or assumed. If the skill is not available, apply the same discipline manually. You may also invoke other Superpowers skills if you encounter one whose description clearly applies to a sub-task you are performing.

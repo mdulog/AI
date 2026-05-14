@@ -71,16 +71,12 @@ The orchestrator detects Superpowers via either of:
 - `.claude/skills/superpowers` directory existing in the target project, or
 - Superpowers skills listed in `.claude/settings.json`.
 
-When present, subagents *may* invoke Superpowers skills during their step (orchestrator § Superpowers usage). Each agent has a sanctioned use:
+When present, every subagent invokes skills directly via the `Skill` tool granted in its frontmatter. The orchestrator's § Superpowers usage prescribes one skill per agent and leaves the rest permissive:
 
-- `spec-brainstormer` — analysis or exploration skills
-- `spec-writer` — documentation or design skills
-- `conventions-writer` — coding-style or refactoring skills
-- `legacy-doc-consolidator` — summarization or classification skills
-- `adr-writer` — ADR or architecture skills (still must follow MADR)
-- `spec-auditor` — review skills
+- **Prescribed (every writer and auditor)** — `verification-before-completion` before returning step output, to ground claims in code rather than inference. Each agent prompt carries the directive in its § Skills usage (when available) section.
+- **Permissive (every agent)** — other Superpowers skills (e.g., `brainstorming`, `writing-plans`) MAY be invoked when an agent identifies one whose description clearly applies to a sub-task. Additional skills are intentionally not hard-named here to avoid coupling to a specific Superpowers version.
 
-Constraints carried over: Superpowers usage must respect this orchestrator's safety rules — no blind overwrites, no deletion of legacy files, no inventing facts not supported by the codebase. Superpowers is never required; the workflow runs identically without it.
+Constraints carried over: Superpowers usage must respect this orchestrator's safety rules — no blind overwrites, no deletion of legacy files, no inventing facts not supported by the codebase. Superpowers is never required; the workflow runs identically without it, and agents apply the same disciplines manually in that case. The `verification-before-completion` prescription is soft (prompt-level) enforcement; STEP 6 (the auditor) is the structural defense against unverified claims in `mode=full` runs.
 
 ## Target-Project Filesystem
 
@@ -101,7 +97,7 @@ The skill is fundamentally a filesystem rewriter. It reads project source as inp
 - `OUTPUT_ROOT/architecture/decisions/NNNN-*.md` (MADR-format ADRs)
 - `OUTPUT_ROOT/conventions/{coding,testing,naming,api}.md`
 - `OUTPUT_ROOT/specs/00-overview.md` (plus optional feature specs)
-- `OUTPUT_ROOT/reference/api.md` (only when the project has APIs to document)
+- `OUTPUT_ROOT/reference/api.md` (only when the codebase has an API surface — HTTP routes, GraphQL schemas, gRPC services, public library exports, or consumed-API clients; not created as a stub otherwise)
 - `OUTPUT_ROOT/summary/latest-run.md`
 - `OUTPUT_ROOT/summary/runs/YYYYMMDD-HHMMSS.md`
 
@@ -137,7 +133,7 @@ To preempt audit confusion: this project has no integration with any of the foll
 - Cloud storage (S3, GCS, blob storage) or CDNs.
 - Containerization runtimes — there is nothing to containerize.
 
-This is why no `OUTPUT_ROOT/reference/api.md` is generated for this repository: there are no APIs to document. The folder exists (created with `.gitkeep` by STEP 0) but remains empty by design.
+This is why no `OUTPUT_ROOT/reference/api.md` exists in this repository: there are no APIs to document, so the file is not created (not even as a stub). The folder exists (tracked by `.gitkeep` from STEP 0) but remains empty by design — the absence of `api.md` is the correct shape per `spec-writer.md` § API-presence rule.
 
 ## Dev Tooling (not part of the skill)
 

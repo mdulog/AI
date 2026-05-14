@@ -47,7 +47,7 @@ Verbatim shape (frontmatter of `generate-knowledge-base/Agents/spec-brainstormer
 ---
 name: spec-brainstormer
 description: Analyzes the repo and CLAUDE.md to understand purpose, layers, patterns, services, and integration points.
-tools: [Read, Bash, Glob, Grep]
+tools: [Read, Bash, Glob, Grep, Skill]
 model: opus
 ---
 ```
@@ -106,12 +106,14 @@ Agent boundaries are enforced at the tool-permission level, not in prose:
 | Component | Tool set | Can write files? | Can dispatch agents? |
 |---|---|---|---|
 | Orchestrator | `[Read, Write, Bash, Agent]` | Yes | Yes |
-| `spec-brainstormer` | `[Read, Bash, Glob, Grep]` | **No** | No |
-| `spec-writer` | `[Read, Write, Bash, Grep]` | Yes | No |
-| `conventions-writer` | `[Read, Write, Bash, Glob, Grep]` | Yes | No |
-| `legacy-doc-consolidator` | `[Read, Write, Bash, Glob, Grep]` | Yes | No |
-| `adr-writer` | `[Read, Write, Bash, Glob]` | Yes | No |
-| `spec-auditor` | `[Read, Bash, Glob, Grep]` | **No** | No |
+| `spec-brainstormer` | `[Read, Bash, Glob, Grep, Skill]` | **No** | No |
+| `spec-writer` | `[Read, Write, Bash, Grep, Skill]` | Yes | No |
+| `conventions-writer` | `[Read, Write, Bash, Glob, Grep, Skill]` | Yes | No |
+| `legacy-doc-consolidator` | `[Read, Write, Bash, Glob, Grep, Skill]` | Yes | No |
+| `adr-writer` | `[Read, Write, Bash, Glob, Skill]` | Yes | No |
+| `spec-auditor` | `[Read, Bash, Glob, Grep, Skill]` | **No** | No |
+
+`Skill` is included on every subagent so they can invoke optional Superpowers skills when the plugin is installed in the target project (orchestrator § Superpowers usage). It is orthogonal to the write boundary: a subagent without `Write` still cannot write files via a skill — skills only orchestrate tools the agent already holds.
 
 Two consequences are load-bearing:
 
