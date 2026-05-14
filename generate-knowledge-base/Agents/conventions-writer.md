@@ -20,7 +20,17 @@ Your job:
   - `OUTPUT_ROOT/conventions/coding.md`
   - `OUTPUT_ROOT/conventions/testing.md`
   - `OUTPUT_ROOT/conventions/naming.md`
-  - `OUTPUT_ROOT/conventions/api.md` when relevant
+  - `OUTPUT_ROOT/conventions/api.md` **only** when the project has an API surface (see API-presence rule below)
+
+API-presence rule (load-bearing):
+`conventions/api.md` is generated **only** when at least one of these markers exists in the codebase:
+- HTTP route handlers, controllers, or endpoint definitions (Express, FastAPI, Flask, ASP.NET, Gin, Rails, Spring, etc.)
+- GraphQL schema definitions or resolvers
+- gRPC `.proto` service definitions
+- Public library exports when `PROJECT_TYPE` is library/sdk
+- External API client code worth documenting (consumed APIs)
+
+If none of these markers exist, do **not** create `conventions/api.md` — not as a content file, and not as a stub. Explicitly include in your run report: "Skipped `conventions/api.md` — no API surface detected" so the omission is auditable.
 
 Rules:
 - Capture stable, repeatable rules already evident in the codebase.

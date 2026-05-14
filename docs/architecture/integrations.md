@@ -97,7 +97,7 @@ The skill is fundamentally a filesystem rewriter. It reads project source as inp
 - `OUTPUT_ROOT/architecture/decisions/NNNN-*.md` (MADR-format ADRs)
 - `OUTPUT_ROOT/conventions/{coding,testing,naming,api}.md`
 - `OUTPUT_ROOT/specs/00-overview.md` (plus optional feature specs)
-- `OUTPUT_ROOT/reference/api.md` (only when the project has APIs to document)
+- `OUTPUT_ROOT/reference/api.md` (only when the codebase has an API surface — HTTP routes, GraphQL schemas, gRPC services, public library exports, or consumed-API clients; not created as a stub otherwise)
 - `OUTPUT_ROOT/summary/latest-run.md`
 - `OUTPUT_ROOT/summary/runs/YYYYMMDD-HHMMSS.md`
 
@@ -133,7 +133,7 @@ To preempt audit confusion: this project has no integration with any of the foll
 - Cloud storage (S3, GCS, blob storage) or CDNs.
 - Containerization runtimes — there is nothing to containerize.
 
-This is why no `OUTPUT_ROOT/reference/api.md` is generated for this repository: there are no APIs to document. The folder exists (created with `.gitkeep` by STEP 0) but remains empty by design.
+This is why no `OUTPUT_ROOT/reference/api.md` exists in this repository: there are no APIs to document, so the file is not created (not even as a stub). The folder exists (tracked by `.gitkeep` from STEP 0) but remains empty by design — the absence of `api.md` is the correct shape per `spec-writer.md` § API-presence rule.
 
 ## Dev Tooling (not part of the skill)
 

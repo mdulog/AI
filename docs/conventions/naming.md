@@ -108,7 +108,7 @@ All folder names are lowercase, singular or plural as shown. These names are har
 | `conventions/coding.md` | Layering, DI, error handling, async patterns |
 | `conventions/testing.md` | Frameworks, placement, fixture patterns |
 | `conventions/naming.md` | Namespaces, DTOs, components, interfaces |
-| `conventions/api.md` | Route style, auth, versioning (created **only when relevant** — not generated for this project) |
+| `conventions/api.md` | Route style, auth, versioning — created **only** when the codebase has an API surface (HTTP routes, GraphQL, gRPC, public library exports, or consumed-API clients). Not generated for this project; not created as a stub when absent. |
 
 ### Required: Spec Document Names
 
@@ -122,9 +122,9 @@ Additional spec files may be created when clearly supported by the codebase. The
 
 | File | Content |
 |---|---|
-| `reference/api.md` | API routes, auth, request/response patterns (created **only when** the project exposes or consumes meaningful APIs) |
+| `reference/api.md` | API routes, auth, request/response patterns — created **only** when the codebase has an API surface per the markers above. Not created as a stub when absent. |
 
-For this repository specifically, `reference/api.md` is intentionally not generated — the skill exposes no HTTP, RPC, or programmatic API.
+For this repository specifically, `reference/api.md` does not exist — the skill exposes no HTTP, RPC, or programmatic API. The `docs/reference/` folder is tracked by its `.gitkeep` only.
 
 ### Required: ADR File Naming
 

@@ -57,7 +57,10 @@ STEP 1    Brainstorm (always; read-only)
 
 STEP 2    Architecture docs (always)
             - spec-writer agent generates overview, components, integrations
-            - Generates reference/api.md only when project has APIs
+            - Generates reference/api.md ONLY when the codebase has an
+              API surface (HTTP routes, GraphQL schemas, gRPC services,
+              public library exports, or consumed-API clients). No stub
+              file is created when no API surface is detected.
 
 STEP 3    Conventions docs (always)
             - conventions-writer agent generates coding/testing/naming/api
@@ -162,7 +165,7 @@ Folder intent (orchestrator § Documentation intent):
 - `reference/` — durable lookup documentation (APIs, configuration, schemas).
 - `summary/` — persistent summaries of orchestration runs, plus a timestamped history under `summary/runs/`.
 
-For this repository specifically, `reference/api.md` is intentionally not generated: the skill exposes no HTTP, RPC, or programmatic API — only the slash-command interface.
+For this repository specifically, `reference/api.md` is not generated and the file does not exist: the skill exposes no HTTP, RPC, or programmatic API — only the slash-command interface. The `docs/reference/` folder is tracked by its `.gitkeep`; the absence of `api.md` is the correct shape per the API-presence rule in `spec-writer.md` § API-presence rule.
 
 ## Important Constraints
 

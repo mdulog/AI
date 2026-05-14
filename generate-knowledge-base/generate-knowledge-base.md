@@ -397,7 +397,14 @@ The `spec-writer` subagent must generate or update:
 - `OUTPUT_ROOT/architecture/overview.md`
 - `OUTPUT_ROOT/architecture/components.md`
 - `OUTPUT_ROOT/architecture/integrations.md`
-- `OUTPUT_ROOT/reference/api.md` when the project exposes or consumes meaningful APIs
+- `OUTPUT_ROOT/reference/api.md` **only** when the project actually exposes or consumes APIs. "API present" means at least one of these markers exists in the codebase:
+  - HTTP route handlers, controllers, or endpoint definitions (Express, FastAPI, Flask, ASP.NET, Gin, Rails, Spring, etc.)
+  - GraphQL schema definitions or resolvers
+  - gRPC `.proto` service definitions
+  - Public library exports when `PROJECT_TYPE` is library/sdk
+  - External API client code worth documenting (consumed APIs)
+
+  If none of these markers exist, the agent must **not** create `reference/api.md` — not as a content file, and not as a "no API here" stub or pointer. The `docs/reference/` folder remains tracked by its `.gitkeep`; an absent `api.md` is the correct shape for a project with no API surface. The agent's run report must explicitly state "Skipped `reference/api.md` — no API surface detected" so the omission is auditable.
 
 Requirements:
 - Use GitHub-Flavored Markdown
@@ -422,7 +429,7 @@ The `conventions-writer` subagent must generate or update:
 - `OUTPUT_ROOT/conventions/coding.md`
 - `OUTPUT_ROOT/conventions/testing.md`
 - `OUTPUT_ROOT/conventions/naming.md`
-- `OUTPUT_ROOT/conventions/api.md` when relevant
+- `OUTPUT_ROOT/conventions/api.md` **only** when the project has an API surface per the detection criteria in STEP 2 (HTTP route handlers, GraphQL schemas, gRPC services, public library exports for library/sdk projects, or documented consumed APIs). If no API surface is detected, the agent must **not** create this file — not as content, and not as a stub. The agent's run report must explicitly state "Skipped `conventions/api.md` — no API surface detected" so the omission is auditable.
 
 The conventions documents must:
 - capture stable, repeatable rules already evident in the codebase

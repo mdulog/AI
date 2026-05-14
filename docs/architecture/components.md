@@ -111,7 +111,7 @@ model: sonnet
 **Responsibilities (STEP 2):**
 
 - Generate or update `OUTPUT_ROOT/architecture/overview.md`, `OUTPUT_ROOT/architecture/components.md`, `OUTPUT_ROOT/architecture/integrations.md`.
-- Generate or update `OUTPUT_ROOT/reference/api.md` *only* when the project exposes or consumes meaningful APIs.
+- Generate or update `OUTPUT_ROOT/reference/api.md` **only** when the codebase has at least one API surface marker (HTTP route handlers, GraphQL schemas, gRPC `.proto` services, public library exports for library/sdk projects, or consumed-API client code). If no marker is detected, the file is **not** created — not as content, and not as a stub. See `spec-writer.md` § API-presence rule.
 
 **Responsibilities (STEP 4):**
 
@@ -137,7 +137,7 @@ model: sonnet
 
 **Responsibilities:**
 
-- Generate or update `OUTPUT_ROOT/conventions/coding.md`, `testing.md`, `naming.md`, and `api.md` (the last only when relevant).
+- Generate or update `OUTPUT_ROOT/conventions/coding.md`, `testing.md`, `naming.md`, and — only when the codebase has an API surface per the same markers used by `spec-writer` — `api.md`. If no API surface is detected, `conventions/api.md` is **not** created (not even as a stub). See `conventions-writer.md` § API-presence rule.
 - Capture stable, repeatable rules already evident in the codebase; avoid one-off feature details.
 - Distinguish required patterns from observed conventions when certainty is limited.
 - Include concrete examples from the repo when useful.
@@ -219,7 +219,7 @@ The orchestrator (STEP 7) presents the High and Medium list to the user, takes c
 | STEP 0.5 | full only | (orchestrator) | yes (moves only) | filesystem migration via `git mv` |
 | STEP 0.6 | full only | `legacy-doc-consolidator` | yes | editorial consolidation |
 | STEP 1 | always | `spec-brainstormer` | no | returns inline report |
-| STEP 2 | always | `spec-writer` (1st) | yes | `architecture/`, `reference/api.md` (conditional) |
+| STEP 2 | always | `spec-writer` (1st) | yes | `architecture/`, `reference/api.md` (only when API surface detected — no stub otherwise) |
 | STEP 3 | always | `conventions-writer` | yes | `conventions/` |
 | STEP 4 | always | `spec-writer` (2nd) | yes | `specs/` |
 | STEP 5 | full only | `adr-writer` | yes | `architecture/decisions/` |

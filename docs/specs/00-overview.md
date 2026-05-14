@@ -112,10 +112,10 @@ After a successful run, the user can expect this layout under `OUTPUT_ROOT/` (or
 | `conventions/coding.md` | Coding standards verifiable in the repo. |
 | `conventions/testing.md` | Testing conventions and structure. |
 | `conventions/naming.md` | Naming and casing rules. |
-| `conventions/api.md` | API conventions (when the project has APIs). |
+| `conventions/api.md` | API conventions — generated **only** when the codebase has an API surface (HTTP routes, GraphQL, gRPC, public library exports, or consumed-API clients). Not created as a stub when absent. |
 | `specs/00-overview.md` | Product behavior overview (this document). |
 | `specs/*.md` | Additional feature specs (only when clearly supported by the codebase). |
-| `reference/api.md` | API reference (only when the project exposes or consumes APIs). |
+| `reference/api.md` | API reference — generated **only** when the codebase has an API surface per the same markers as `conventions/api.md`. Not created as a stub when absent; the folder is tracked by `.gitkeep`. |
 | `plans/` | Reserved for human-authored implementation plans; never auto-managed (the orchestrator creates the folder via STEP 0 but no step writes to it). |
 | `summary/latest-run.md` | Latest run summary; overwritten every run. |
 | `summary/runs/YYYYMMDD-HHMMSS.md` | Timestamped run history; never overwritten. |
