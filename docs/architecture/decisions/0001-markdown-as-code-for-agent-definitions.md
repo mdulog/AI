@@ -20,7 +20,7 @@ The system needs a format for defining the orchestrator and its six subagents. E
 
 Chosen option: **Markdown files with YAML frontmatter and natural language prompt bodies**, because the Claude Code runtime natively interprets this format for commands and agents, eliminating the need for a build step, runtime framework, or custom loader.
 
-Each agent is a single `.md` file. The YAML frontmatter declares structured metadata (`name`, `description`, `tools` or `allowed-tools`, and `model`). The markdown body contains the full behavioral specification as natural language prompts. The orchestrator uses `allowed-tools: [Read, Write, Bash, Agent]` and `model: sonnet` in its frontmatter (per the no-version-pins rule codified in ADR 0006). Subagents use the `tools` key (e.g., `tools: [Read, Bash, Glob, Grep]`) and each declares a generic model alias.
+Each agent is a single `.md` file. The YAML frontmatter declares structured metadata (`name`, `description`, `tools` or `allowed-tools`, and `model`). The markdown body contains the full behavioral specification as natural language prompts. The orchestrator uses `allowed-tools: [Read, Write, Bash, Agent]` and `model: sonnet` in its frontmatter (per the no-version-pins rule codified in ADR 0006). Subagents use the `tools` key (e.g., `tools: [Read, Bash, Glob, Grep, Skill]`) and each declares a generic model alias.
 
 This approach means the entire system -- orchestrator logic, agent definitions, tool permissions, and behavioral instructions -- is expressed as seven markdown files with no compiled code.
 

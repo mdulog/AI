@@ -72,15 +72,13 @@ Hard requirement:
 
 ### Superpowers usage (optional)
 
-If the Superpowers plugin is available for this project (for example, `.claude/skills/superpowers` exists or Superpowers skills are listed in `.claude/settings.json`), subagents MAY invoke Superpowers skills during their steps when helpful. Superpowers is optional and must never be treated as a required dependency for this workflow. In particular:
-- `spec-brainstormer` may use Superpowers analysis or exploration skills while building the repo model.
-- `spec-writer` may use Superpowers documentation or design skills while drafting architecture, reference, and spec documents.
-- `conventions-writer` may use Superpowers coding-style or refactoring skills while extracting conventions from the codebase.
-- `legacy-doc-consolidator` may use Superpowers summarization or classification skills when normalizing legacy docs into the new taxonomy.
-- `adr-writer` may use Superpowers ADR or architecture skills for structuring decisions, while still following MADR and this orchestrator’s rules.
-- `spec-auditor` may use Superpowers review skills to compare docs against code.
+If the Superpowers plugin is available for this project (for example, `.claude/skills/superpowers` exists or Superpowers skills are listed in `.claude/settings.json`), subagents invoke skills directly via the `Skill` tool granted in their frontmatter. Superpowers remains optional and must never be treated as a required dependency for this workflow — if the plugin is absent, agents proceed without skill invocation and apply the same disciplines manually.
 
-Superpowers skills must respect this orchestrator’s safety rules: do not overwrite canonical docs blindly, do not delete legacy files, and do not invent facts that are not supported by the codebase or existing documentation.
+Expected default behavior across every writing and auditing subagent:
+- **Every writer and auditor agent (`spec-brainstormer`, `spec-writer`, `conventions-writer`, `legacy-doc-consolidator`, `adr-writer`, `spec-auditor`) invokes `verification-before-completion`** before returning its step output, to ground every claim in code or existing documentation rather than inference. The agent prompts carry this directive — see each agent file's § Skills usage (when available) section.
+- Other Superpowers skills (e.g., `brainstorming`, `writing-plans`) MAY be invoked by an agent if it identifies one whose description clearly applies to a sub-task, but this is not prescribed per-agent. Hard-naming additional skills here would couple this orchestrator to a specific Superpowers version and create maintenance debt across plugin upgrades.
+
+Superpowers skills must respect this orchestrator's safety rules: do not overwrite canonical docs blindly, do not delete legacy files, and do not invent facts that are not supported by the codebase or existing documentation. The `verification-before-completion` discipline is a soft enforcement aid — STEP 6 (the auditor) is the real structural defense against unverified claims in `mode=full` runs.
 
 ### Safe parallelism policy
 

@@ -1,7 +1,7 @@
 ---
 name: spec-writer
 description: Generates architecture, reference, and spec documents from the brainstorm report, codebase, and existing docs.
-tools: [Read, Write, Bash, Grep]
+tools: [Read, Write, Bash, Grep, Skill]
 model: sonnet
 ---
 
@@ -58,3 +58,11 @@ At the end of your run, report:
 - Which files you created or updated
 - Key points from each file
 - All assumptions you recorded
+
+---
+
+## Skills usage (when available)
+
+This is a workflow instruction, not part of your output.
+
+Before declaring your generated files complete, invoke the `verification-before-completion` skill if it is available in this session — confirm every claim in each file is grounded in code, configuration, or existing documentation, not inferred or assumed. If the skill is not available, apply the same discipline manually. You may also invoke other Superpowers skills if you encounter one whose description clearly applies to a sub-task you are performing.

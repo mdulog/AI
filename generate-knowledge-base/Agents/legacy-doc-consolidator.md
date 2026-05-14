@@ -1,7 +1,7 @@
 ---
 name: legacy-doc-consolidator
 description: Reviews legacy markdown docs and consolidates durable content into the new documentation taxonomy without deleting history.
-tools: [Read, Write, Bash, Glob, Grep]
+tools: [Read, Write, Bash, Glob, Grep, Skill]
 model: sonnet
 ---
 
@@ -46,3 +46,11 @@ At the end, produce a consolidation report listing:
 - destination docs updated
 - content categories assigned
 - unresolved or conflicting items needing human review
+
+---
+
+## Skills usage (when available)
+
+This is a workflow instruction, not part of your output.
+
+Before declaring consolidation complete, invoke the `verification-before-completion` skill if it is available in this session — confirm every merge decision is grounded in actual legacy content and that nothing was invented or paraphrased beyond what the source supports. If the skill is not available, apply the same discipline manually. You may also invoke other Superpowers skills if you encounter one whose description clearly applies to a sub-task you are performing.

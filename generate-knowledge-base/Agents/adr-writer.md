@@ -1,7 +1,7 @@
 ---
 name: adr-writer
 description: Identifies significant architectural decisions from the codebase and creates MADR-format ADR files in the architecture/decisions/ folder.
-tools: [Read, Write, Bash, Glob]
+tools: [Read, Write, Bash, Glob, Skill]
 model: opus
 ---
 
@@ -89,3 +89,11 @@ At the end of your run, report:
 
 ## Assumptions
 - Bullet list of anything you had to infer about intent or rationale from the code
+
+---
+
+## Skills usage (when available)
+
+This is a workflow instruction, not part of your output.
+
+Before writing each ADR file, invoke the `verification-before-completion` skill if it is available in this session — confirm the decision you are about to record is supported by codebase evidence and not invented or assumed. The "Refuse to invent decisions not supported by code or docs" rule above is the discipline this skill amplifies. If the skill is not available, apply the same discipline manually. You may also invoke other Superpowers skills if you encounter one whose description clearly applies to a sub-task you are performing.

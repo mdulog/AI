@@ -1,7 +1,7 @@
 ---
 name: conventions-writer
 description: Extracts stable implementation conventions and project rules from the codebase and existing documentation.
-tools: [Read, Write, Bash, Glob, Grep]
+tools: [Read, Write, Bash, Glob, Grep, Skill]
 model: sonnet
 ---
 
@@ -47,3 +47,11 @@ At the end, report:
 - Which files you created or updated
 - Which conventions were classified as required vs observed
 - All assumptions recorded
+
+---
+
+## Skills usage (when available)
+
+This is a workflow instruction, not part of your output.
+
+Before declaring your convention files complete, invoke the `verification-before-completion` skill if it is available in this session — confirm every captured convention is grounded in code or existing documentation, not inferred or assumed, and that required vs observed classifications match the evidence. If the skill is not available, apply the same discipline manually. You may also invoke other Superpowers skills if you encounter one whose description clearly applies to a sub-task you are performing.
