@@ -1,0 +1,49 @@
+WEBVTT
+
+NOTE Customer discovery call — Loopr — Acme Logistics
+NOTE Interviewer: Priya Shah (PM). Customer: Dan Reyes, Ops Lead.
+
+00:00:08.120 --> 00:00:14.480
+<v Priya>Thanks for making time, Dan. I want to walk through how your team got started with Loopr last quarter.
+
+00:00:14.900 --> 00:00:27.330
+<v Dan>Yeah, no problem. Honestly the first two weeks were rough. We had four people on the trial and only one of them got past the workspace setup before giving up.
+
+00:00:27.800 --> 00:00:36.140
+<v Priya>What specifically tripped them up? Was it the SSO step or the project import?
+
+00:00:36.500 --> 00:00:51.220
+<v Dan>The import. The CSV mapper kept rejecting our column headers because we use spaces and your validator wants underscores. Nobody told us that until we hit the error twelve times.
+
+00:00:51.700 --> 00:01:02.910
+<v Priya>That's painful. So onboarding friction was real for your team. Did you feel like the docs covered the import format?
+
+00:01:03.300 --> 00:01:14.880
+<v Dan>The docs exist but they're buried under the "advanced" tab. A new admin isn't going to think CSV import is advanced. That's table-stakes for us.
+
+00:01:15.250 --> 00:01:23.770
+<v Priya>Got it. If we fixed the import path — auto-detect headers, clearer errors — would that change your evaluation?
+
+00:01:24.100 --> 00:01:38.560
+<v Dan>Honestly yes. The product itself is great once you're in. The routing engine saved us six hours a week on dispatch. It's just the on-ramp that almost killed the pilot.
+
+00:01:39.000 --> 00:01:46.220
+<v Priya>That's good to hear. Can I ask about pricing? You mentioned the procurement team had questions.
+
+00:01:46.700 --> 00:02:01.430
+<v Dan>Right. So we have about thirty dispatchers. At fifty dollars a seat per month we can make that work — that's roughly what we pay for the tool we'd be replacing. Anything north of that and we have to escalate to the VP.
+
+00:02:01.900 --> 00:02:10.180
+<v Priya>Fifty per seat is the ceiling that doesn't trigger procurement?
+
+00:02:10.500 --> 00:02:21.840
+<v Dan>Yeah, $50/seat is fine. Above that we need a business case and that takes a quarter. So if you stay at or under that we can close this in two weeks.
+
+00:02:22.300 --> 00:02:32.110
+<v Priya>Helpful. One more — the onboarding piece, would your dispatchers self-serve a re-do if we shipped a guided import wizard?
+
+00:02:32.500 --> 00:02:44.770
+<v Dan>If it's actually guided, yes. The current flow assumes you already know what Loopr expects. New users don't. Fix that and you've removed our biggest objection.
+
+00:02:45.200 --> 00:02:50.330
+<v Priya>Thanks Dan, this is really useful. I'll follow up next week with the wizard mockups.
