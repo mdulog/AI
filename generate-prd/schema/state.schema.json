@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/generate-prd/state.schema.json",
+  "type": "object",
+  "required": [
+    "schema_version", "run_id", "feature_name", "started_at",
+    "last_checkpoint_at", "status", "input_transcripts",
+    "template_hash", "themes", "draft_sections", "qa_history",
+    "iteration_count", "qa_turn_count", "cost_estimate_usd"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_id":         { "type": "string", "minLength": 1 },
+    "feature_name":   { "type": "string", "minLength": 1 },
+    "started_at":     { "type": "string", "format": "date-time" },
+    "last_checkpoint_at": { "type": "string", "format": "date-time" },
+    "status":         { "enum": ["in_progress", "paused", "faulted", "completed"] },
+    "fault":          { "type": ["null", "object"] },
+    "input_transcripts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "hash", "path", "normalized_path"],
+        "properties": {
+          "id":   { "type": "string", "pattern": "^T\\d+$" },
+          "hash": { "type": "string" },
+          "path": { "type": "string" },
+          "normalized_path": { "type": "string" }
+        }
+      }
+    },
+    "glossary_hash":  { "type": ["string", "null"] },
+    "template_hash":  { "type": "string" },
+    "themes":         { "type": "array" },
+    "draft_sections": { "type": "object" },
+    "qa_history":     { "type": "array" },
+    "iteration_count":{ "type": "integer", "minimum": 0 },
+    "qa_turn_count":  { "type": "integer", "minimum": 0 },
+    "cost_estimate_usd": { "type": "number", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

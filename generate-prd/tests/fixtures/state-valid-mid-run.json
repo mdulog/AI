@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "run_id": "test-run-002",
+  "feature_name": "checkout-redesign",
+  "started_at": "2026-05-15T14:22:03Z",
+  "last_checkpoint_at": "2026-05-15T15:48:11Z",
+  "status": "paused",
+  "fault": null,
+  "input_transcripts": [
+    { "id": "T01", "hash": "sha256:abc", "path": "transcripts/t1.vtt", "normalized_path": "transcripts/.normalized/t1.md" },
+    { "id": "T02", "hash": "sha256:def", "path": "transcripts/t2.vtt", "normalized_path": "transcripts/.normalized/t2.md" }
+  ],
+  "glossary_hash": "sha256:glossary123",
+  "template_hash": "sha256:def",
+  "themes": [
+    {
+      "id": "TH01",
+      "name": "Guest checkout friction",
+      "quotes": [
+        { "transcript_id": "T01", "text": "Users abandon when we force account creation." },
+        { "transcript_id": "T02", "text": "Mobile guest flow has a 40% drop-off at email entry." }
+      ]
+    },
+    {
+      "id": "TH02",
+      "name": "Payment method coverage",
+      "quotes": [
+        { "transcript_id": "T01", "text": "We are missing Apple Pay on the cart screen." }
+      ]
+    },
+    {
+      "id": "TH03",
+      "name": "Address validation errors",
+      "quotes": [
+        { "transcript_id": "T02", "text": "International addresses get rejected silently." }
+      ]
+    }
+  ],
+  "draft_sections": {
+    "problem": "Customers abandon checkout when forced to create an account, especially on mobile.",
+    "goals": "Reduce guest checkout drop-off by 25% within one quarter."
+  },
+  "qa_history": [
+    {
+      "finding_type": "ambiguity",
+      "iteration": 2,
+      "posed_at": "2026-05-15T14:51:00Z",
+      "pm_response_summary": "PM clarified that guest checkout means no account at any point, not deferred account creation."
+    },
+    {
+      "finding_type": "gap",
+      "iteration": 3,
+      "posed_at": "2026-05-15T15:10:42Z",
+      "pm_response_summary": "PM provided target metric: 25% reduction in guest abandonment over 90 days."
+    },
+    {
+      "finding_type": "contradiction",
+      "iteration": 4,
+      "posed_at": "2026-05-15T15:32:18Z",
+      "pm_response_summary": "PM resolved conflict between T01 and T02 on Apple Pay priority: defer to phase 2."
+    }
+  ],
+  "iteration_count": 5,
+  "qa_turn_count": 3,
+  "cost_estimate_usd": 1.42
+}
