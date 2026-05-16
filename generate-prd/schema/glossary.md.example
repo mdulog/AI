@@ -1,0 +1,10 @@
+# Glossary
+
+# Map common transcription errors / variants to the canonical form.
+# Format: <original>: <canonical>
+# Case-insensitive matching.
+
+Looper: Loopr
+Sales Force: Salesforce
+John Roe: John Doe
+A C M E: ACME
