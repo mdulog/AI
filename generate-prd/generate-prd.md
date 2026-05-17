@@ -54,7 +54,14 @@ If `/effort` is unavailable in the harness, continue and behave as if the reques
    - `transcript-normalizer`, `transcript-distiller`, `theme-clusterer`, `prd-drafter`, `prd-critic`, `prd-finalizer`.
    - If any are missing, surface the missing names and a one-liner deploy command, then exit.
 
-2. **Detect existing `.state.json`** and branch on `status`:
+2. **Detect existing `.state.json`** and FIRST check `schema_version`:
+   - Read the file. Compare `schema_version` against the current schema's `schema_version` (declared in `generate-prd/schema/state.schema.json` — `1` at v1).
+   - If `schema_version` matches: continue to the status branch below.
+   - If `schema_version < current`: a **migration** is required. Look for a migration script at `generate-prd/schema/migrations/v<from>-to-v<current>.py` (one script per single-step upgrade; the orchestrator chains them if needed). Run it; the script must rewrite `prd/.state.json` in place to the target schema. If the migration script does not exist, surface a fault: *"State file is at schema_version `<from>`; this skill is at `<current>`. Migration script missing. Either upgrade the skill to a version that includes the migration, or archive `prd/.state.json` and start fresh."*
+   - If `schema_version > current`: the state is from a newer skill version. Surface: *"State file is at schema_version `<from>`, but this skill only understands up to `<current>`. Upgrade the skill or archive `prd/.state.json` and start fresh."*
+   - At v1 → v1 this branch is a no-op, but the orchestrator runs the check unconditionally so v2 will Just Work.
+
+3. Once `schema_version` is current, **branch on `status`**:
    - **`in_progress` or `paused`:** prompt the PM —
      > *"Found an unfinished discovery session for `<feature_name>` (`<iteration_count>` iterations, last checkpoint at `<last_checkpoint_at>`). **Resume**, **archive and start fresh**, or **cancel**?"*
      - Resume → jump to whichever phase the state's `status` and progress markers indicate.
@@ -65,7 +72,7 @@ If `/effort` is unavailable in the harness, continue and behave as if the reques
    - **`completed`:** archive silently to `prd/.archive/<run_id>/`; proceed to fresh-run setup.
    - **No state file:** proceed to fresh-run setup.
 
-3. **Fresh-run setup:**
+4. **Fresh-run setup:**
    a. **Prompt the PM for `feature_name`:**
       > *"What's the short kebab-case identifier for this feature? (e.g., `onboarding-revamp`, `loopr-billing-v2`)"*
       Validate against `^[a-z][a-z0-9-]*$`. On invalid input, re-prompt with a one-line example. The name drives the PRD output filename (`prd/<feature_name>.md`) and the state `run_id`.
