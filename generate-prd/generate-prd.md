@@ -88,6 +88,7 @@ If `/effort` is unavailable in the harness, continue and behave as if the reques
 
 For each transcript in `state.input_transcripts`:
 - `/effort medium`
+- **Checkpoint:** write `prd/.state.json` (set `last_checkpoint_at = now`, status stays `in_progress`) BEFORE the dispatch. Write-ahead state is the durability invariant — see "Checkpoint discipline" in the File and State Map above.
 - Dispatch `Agent({ subagent_type: "transcript-normalizer", ... })` with inputs: `transcript_path`, `transcript_id`, `glossary_path`.
 
 **Fan-out:** allowed within this step — each invocation writes to a distinct `.normalized/<basename>.md` file. No conflict.
@@ -102,6 +103,7 @@ If any normalizer returns a fault, surface to the PM with options: skip the offe
 
 Pre-create `prd/.distillations/`. For each `input_transcripts[i]` with a populated `normalized_path`:
 - `/effort medium` (escalate to `high` for any transcript longer than ~10k tokens — the orchestrator estimates from file size)
+- **Checkpoint:** write `prd/.state.json` BEFORE the dispatch.
 - Dispatch `Agent({ subagent_type: "transcript-distiller", ... })` with inputs: `transcript_id`, `normalized_path`.
 
 **Fan-out:** allowed — each writes to a distinct `prd/.distillations/T<id>.md`.
@@ -113,6 +115,7 @@ Pre-create `prd/.distillations/`. For each `input_transcripts[i]` with a populat
 ## STEP 3 — Cluster themes
 
 - `/effort high`
+- **Checkpoint:** write `prd/.state.json` BEFORE the dispatch.
 - Dispatch `Agent({ subagent_type: "theme-clusterer", ... })` with inputs: `distillation_paths` (all of them), `corpus_size`.
 - Read the returned `themes_path` (`prd/.themes.md`).
 - `/effort medium`
@@ -123,6 +126,7 @@ Pre-create `prd/.distillations/`. For each `input_transcripts[i]` with a populat
 
 ## STEP 4 — Initial Draft
 
+- **Checkpoint:** write `prd/.state.json` BEFORE the dispatch.
 - Dispatch `Agent({ subagent_type: "prd-drafter", mode: "initial", ... })` with inputs: `themes_path`, `template_path`, `feature_name`, `output_path = prd/<feature_name>.md`.
 
 **Reference: section→phase mapping (spec § 7.5).** Evidence-anchored sections are populated from themes; PM-judgment sections (Goals & Non-Goals, Non-Functional Requirements, Success Metrics, Constraints) are left empty (heading + italic intent line only). The drafter does NOT fabricate content for empty sections.
@@ -146,11 +150,12 @@ The heart of the tool. Runs an unbounded loop; each iteration runs three phases 
 
 1. Build a token-cheap `transcripts_summary` from distillations (one line per `T<id>` summarizing problems/personas; the critic reads themes and qa_history for detail).
 2. `/effort high`
-3. Dispatch `Agent({ subagent_type: "prd-critic", ... })` with inputs: `transcripts_summary_path`, `themes_path`, `qa_history_path`, `draft_path`.
-4. Capture the critic output to `state.qa_history` as a `critic_pass` entry with `iteration`, `posed_at`, `output_hash` (sha256 of the raw output), and the recommended-starting-point reference.
-5. **Stuck-loop fault detection:** keep the last 5 `output_hash` values. If all 5 are identical, write `state.status = "faulted"`, `state.fault = {type: "stuck_loop", iteration, diagnostic: "Critic returned identical findings 5 iterations in a row"}`, checkpoint, and surface to the PM with choices: **finalize anyway**, **pivot the discussion** (PM picks a section/topic), or **report a bug** (exit with the diagnostic).
-6. `/effort medium`
-7. Checkpoint state.
+3. **Checkpoint:** write `prd/.state.json` BEFORE the dispatch (records the impending critic call; lets resume pick up here if the LLM call dies).
+4. Dispatch `Agent({ subagent_type: "prd-critic", ... })` with inputs: `transcripts_summary_path`, `themes_path`, `qa_history_path`, `draft_path`.
+5. Capture the critic output to `state.qa_history` as a `critic_pass` entry with `iteration`, `posed_at`, `output_hash` (sha256 of the raw output), and the recommended-starting-point reference.
+6. **Stuck-loop fault detection:** keep the last 5 `output_hash` values. If all 5 are identical, write `state.status = "faulted"`, `state.fault = {type: "stuck_loop", iteration, diagnostic: "Critic returned identical findings 5 iterations in a row"}`, checkpoint, and surface to the PM with choices: **finalize anyway**, **pivot the discussion** (PM picks a section/topic), or **report a bug** (exit with the diagnostic).
+7. `/effort medium`
+8. Checkpoint state.
 
 ### 5.b — Discussion
 
@@ -184,9 +189,10 @@ The PM signals "discussion converged" by either: (a) typing `/refine` to apply t
 If the PM typed `/refine`:
 1. Identify the affected section(s) — orchestrator inference: most recent finding's `relevant_section`, plus any section the PM explicitly mentioned in the discussion turn.
 2. Build a `discussion_turn_summary` (concise plain-text summary of the resolved Q&A relevant to the section).
-3. Dispatch `Agent({ subagent_type: "prd-drafter", mode: "refine", ... })` with inputs: `draft_path`, `section_heading`, `discussion_turn_summary`, `themes_path`, `qa_history`.
-4. Append to `state.draft_sections` a record of the section refined this iteration, byte-delta, and the source finding.
-5. Increment `iteration_count`. Checkpoint.
+3. **Checkpoint:** write `prd/.state.json` BEFORE the dispatch.
+4. Dispatch `Agent({ subagent_type: "prd-drafter", mode: "refine", ... })` with inputs: `draft_path`, `section_heading`, `discussion_turn_summary`, `themes_path`, `qa_history`.
+5. Append to `state.draft_sections` a record of the section refined this iteration, byte-delta, and the source finding.
+6. Increment `iteration_count`. Checkpoint.
 
 After 5.c (or skip), return to 5.a.
 
@@ -218,9 +224,10 @@ Triggered by PM `/done`. Runs once.
 
 1. Build the merged `transcript_index` JSON from all `transcripts/.normalized/*.timestamps.json` side-cars. Write to `prd/.transcript_index.json`.
 2. `/effort high`
-3. Dispatch `Agent({ subagent_type: "prd-finalizer", ... })` with inputs: `draft_path`, `transcript_index_path`.
-4. `/effort medium`
-5. Capture the report. Surface it to the PM verbatim.
+3. **Checkpoint:** write `prd/.state.json` BEFORE the dispatch.
+4. Dispatch `Agent({ subagent_type: "prd-finalizer", ... })` with inputs: `draft_path`, `transcript_index_path`.
+5. `/effort medium`
+6. Capture the report. Surface it to the PM verbatim.
 
 **If the report's `## Completeness` section flags concerns:** prompt the PM —
 > *"Completeness check flagged: `<one-line summary>`. **Accept and ship** (some sections honestly thin), or **return to discovery** (re-enter STEP 5)?"*
