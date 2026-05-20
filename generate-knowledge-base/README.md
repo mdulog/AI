@@ -1,5 +1,7 @@
 # generate-knowledge-base
 
+> Part of the [Claude Code Skills](../README.md) collection. Sibling skill: [`generate-prd`](../generate-prd/README.md) — turns transcripts into a PRD.
+
 Generate a living knowledge base for any software project in a single command.
 
 ## Why?
@@ -40,7 +42,7 @@ That's it. Docs are written to `docs/` by default. A run summary lands in `docs/
 | ADRs | `docs/architecture/decisions/` | MADR-format architectural decision records |
 | Run summary | `docs/summary/latest-run.md` | What ran, what was created, gaps to review |
 
-## Arguments
+## Execution modes
 
 ```bash
 # Custom output folder
@@ -169,3 +171,12 @@ The `adr-writer` agent only records decisions clearly evident in the code — it
 
 **Docs are accurate but I want to capture more detail**
 Run in `mode=full` if you ran `mode=light`, then review the audit output in STEP 6. The auditor will flag missing information as Medium or Low priority corrections.
+
+---
+
+## Further reading
+
+- [`docs/install.md`](docs/install.md) — detailed install, verification, troubleshooting, update, and uninstall
+- [`docs/walkthrough.md`](docs/walkthrough.md) — worked example: full-mode run from STEP 0 through STEP 8
+- [`Agents/README.md`](Agents/README.md) — what each of the 6 subagents does
+- [Root README](../README.md) — skills index and overview of both skills in this repo

@@ -1,5 +1,7 @@
 # generate-prd
 
+> Part of the [Claude Code Skills](../README.md) collection. Sibling skill: [`generate-knowledge-base`](../generate-knowledge-base/README.md) — generates architecture docs and conventions for any codebase.
+
 Turn customer-conversation transcripts into a PRD via an unbounded discovery loop with a critic that questions the draft every iteration.
 
 > **Status:** v1. The skill is deployable and the full discovery loop (normalize → distill → cluster → draft → critic-driven discovery → finalize) is wired end-to-end. Live behavioral validation against real Anthropic API calls has been deferred — see [§ Live validation](#live-validation) below.

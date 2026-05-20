@@ -141,27 +141,19 @@ generate-knowledge-base/
     adr-writer.md              ADR writer with deduplication (STEP 5)
     spec-auditor.md            Read-only doc auditor (STEP 6)
     README.md                  Agent documentation
+  docs/
+    install.md                 Detailed install, verification, troubleshooting
+    walkthrough.md             Worked example: full-mode run end to end
   README.md                    Detailed usage and troubleshooting
 docs/                          Generated knowledge base (this repo documents itself)
 ```
 
-## Troubleshooting
-
-**`/generate-knowledge-base` command not found**
-The orchestrator isn't deployed. Copy `generate-knowledge-base.md` to `.claude/commands/` in your target project.
-
-**"Agent X is missing" at startup**
-Copy all files from `Agents/` to `.claude/agents/` in your target project. The orchestrator hard-stops with the exact missing path.
-
-**`reference/api.md` wasn't generated**
-Only created when the project exposes or consumes meaningful APIs. Expected for projects with no API layer.
-
-**ADRs describe decisions I don't agree with**
-The `adr-writer` only records decisions evident in the code. If an ADR seems off, the underlying code pattern may be inconsistent — the ADR is surfacing a real signal.
+Full docs: [`generate-knowledge-base/README.md`](generate-knowledge-base/README.md) · [Install guide](generate-knowledge-base/docs/install.md) · [Walkthrough](generate-knowledge-base/docs/walkthrough.md)
 
 ---
 
 # generate-prd
+
 
 Turn customer conversation transcripts into a PRD via an unbounded discovery loop with a typed critic.
 
