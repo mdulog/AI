@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# pre-push hook: blocks push when skill files changed since last docs update.
+# Install via: scripts/install-hooks.sh
+# Bypass (when intentional): git push --no-verify
+
+set -euo pipefail
+
+SKILL_PATHS=('generate-knowledge-base/' 'generate-prd/')
+DOC_PATHS=('docs/' 'CLAUDE.md')
+
+# Find the most recent commit that touched docs/ or CLAUDE.md
+# git log -1 outputs exactly one line and exits cleanly — no SIGPIPE under pipefail
+last_docs_commit=$(git log -1 --oneline --diff-filter=AM -- "${DOC_PATHS[@]}" 2>/dev/null \
+  | awk '{print $1}')
+
+if [ -z "$last_docs_commit" ]; then
+  exit 0
+fi
+
+# Check if any skill files changed since that commit
+changed=$(git diff --name-only "$last_docs_commit"..HEAD -- "${SKILL_PATHS[@]}" 2>/dev/null || true)
+
+if [ -n "$changed" ]; then
+  echo ""
+  echo "pre-push: skill files changed since last docs update ($last_docs_commit):"
+  echo "$changed" | sed 's/^/  /'
+  echo ""
+  echo "  Sync the docs before pushing:"
+  echo "    1. Open Claude Code in this repo"
+  echo "    2. Run: /generate-knowledge-base mode=light"
+  echo "    3. Commit the updated docs"
+  echo "    4. Push"
+  echo ""
+  echo "  To bypass: git push --no-verify"
+  echo ""
+  exit 1
+fi
+
+exit 0
