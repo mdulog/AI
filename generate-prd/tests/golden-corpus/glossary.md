@@ -1,0 +1,2 @@
+# Glossary
+Looper: Loopr
