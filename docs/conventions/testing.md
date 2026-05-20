@@ -2,15 +2,11 @@
 
 ## Overview
 
-**This project has no automated test suite.** It is a pure-markdown Claude Code skill consisting of YAML frontmatter and structured prompt definitions. There is:
+This repository contains two skills with different testing postures.
 
-- no compiled code,
-- no test framework,
-- no test runner,
-- no CI/CD pipeline,
-- no assertion-based test files anywhere in the repository.
+**`generate-knowledge-base`** has no automated test suite. It is a pure-markdown Claude Code skill — YAML frontmatter and structured prompt definitions. Quality assurance is achieved through three mechanisms: **the in-workflow audit** (STEP 6 + STEP 7), **the LLM-judge smoke grader** (`scripts/smoke_grade.py`), and **dogfooding plus manual review**. None of these is a substitute for an automated test suite — they are what this skill actually has.
 
-Quality assurance is achieved through three mechanisms built into the workflow itself or attached as dev tooling: **the in-workflow audit**, **the LLM-judge smoke grader**, and **dogfooding plus manual review**. None of these is a substitute for an automated test suite — they are what the project actually has.
+**`generate-prd`** ships a 94-test static pytest suite (`generate-prd/tests/`) that runs with no API key required. See [`generate-prd` Testing](#generate-prd-testing) below.
 
 ## Validation Mechanisms
 
@@ -96,16 +92,56 @@ The "code" in this project is natural-language prompts interpreted by an LLM at 
 
 The `spec-auditor` agent is the project's functional equivalent of a test suite — it performs evidence-based validation of generated output against the source-of-truth code. The smoke grader complements this with a grade-comparison harness for prompt-engineering experiments, but neither produces a pass/fail signal in the conventional CI sense.
 
-## What is Explicitly *Not* a Convention Here
+## What is Explicitly *Not* a Convention for `generate-knowledge-base`
 
-The repository contains nothing of the following — do not infer their existence:
+The `generate-knowledge-base` skill contains none of the following — do not infer their existence:
 
 - No `tests/`, `test/`, `__tests__/`, `spec/`, or `Tests/` directory.
 - No `*.test.*`, `*.spec.*`, `_test.go`, `*Tests.cs`, or equivalent files.
 - No fixtures, factories, mocks, or stubs.
-- No coverage thresholds, no lint config that gates CI, no pre-commit hooks.
+- No coverage thresholds, no lint config that gates CI.
 
-If the project later grows code (e.g. a CLI wrapper, a programmatic harness for prompt evaluation), a conventional test suite must be introduced at that point. Until then, do not fabricate "test conventions" that are not implemented.
+If `generate-knowledge-base` later grows code (e.g. a CLI wrapper), a conventional test suite must be introduced at that point.
+
+---
+
+## `generate-prd` Testing
+
+`generate-prd` ships a static pytest suite under `generate-prd/tests/`. All 94 tests run with no API key or network access required — they are structural assertions against prompt files, schema files, and fixture JSON.
+
+### Layout
+
+```
+generate-prd/tests/
+  validators/          # Per-prompt and per-schema static tests (9 files)
+  e2e/                 # Deployment smoke test — orchestrator + agents + golden corpus shape
+  durability/          # Checkpoint ordering, state fixtures, stuck-loop, schema migration
+  golden-corpus/       # 5 synthetic transcripts + glossary + expected themes + critic fixtures
+  fixtures/            # State JSON fixtures (valid and invalid) for schema tests
+```
+
+### Running the suite
+
+```bash
+cd /path/to/repo
+source .venv/bin/activate   # requires: pip install -r generate-prd/requirements-dev.txt
+pytest generate-prd/tests/  # expect 94 tests, 0 failures, no API calls
+```
+
+### What the tests cover
+
+| Layer | Files | What is checked |
+|---|---|---|
+| Prompt contracts | `tests/validators/test_*.py` | Required template variables, output format specs, forbidden phrases, no-closure clause, finding-type vocabulary distinctness |
+| Schema validity | `tests/validators/test_state_schema.py`, `test_prd_template.py` | JSON Schema validates, PRD template has 9 sections with italic intent lines |
+| Deployment shape | `tests/e2e/test_deployment_smoke.py` | All 6 agents have valid frontmatter, orchestrator references all 6 agents, all 7 prompts exist |
+| Durability | `tests/durability/test_*.py` | Checkpoint-before-API-call ordering, state fixtures validate against schema, stuck-loop detection, schema migration contract |
+| Fixtures | `tests/golden-corpus/critic-fixtures/` | 8 planted-flaw drafts (one per finding type + one clean baseline) with declared expected findings |
+
+### What the tests do NOT cover
+
+- Behavioral correctness of the critic, drafter, or any other agent — that requires live model calls. The holistic critic accuracy playbook at `tests/durability/test_critic_holistic.md` is the gate for behavioral validation.
+- Live API calls — `tests/validators/run_prompt.py` exists as a harness but is never invoked by pytest.
 
 ## Assumptions
 

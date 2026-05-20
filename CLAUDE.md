@@ -24,7 +24,7 @@ Neither skill is a standalone application. Both are deployed _into_ target proje
 - `Agents/*.md` — Six subagent definitions deployed to `.claude/agents/`.
 - `prompts/` — Seven prompt files read at runtime by the agents (not deployed).
 - `schema/` — State schema (JSON Schema draft 2020-12), PRD template, transcript format spec, migration scaffolding.
-- `tests/` — Static test suite (96 tests, no API key required) + golden corpus + durability playbooks.
+- `tests/` — Static test suite (94 tests, no API key required) + golden corpus + durability playbooks.
 - `docs/` — User-facing README, install guide, and walkthrough.
 
 ## Architecture
@@ -129,10 +129,17 @@ cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
 
 ## When Modifying This Project
 
+### `generate-knowledge-base`
 - The orchestrator (`generate-knowledge-base.md`) is the source of truth for step ordering, agent delegation rules, mode behavior, and safety policies. Agent files must stay consistent with what the orchestrator expects.
 - Agent frontmatter (`name`, `description`, `tools`) must match how the orchestrator invokes them. If you rename an agent or change its tool set, update the orchestrator's verification list in STEP 0 and the corresponding invocation.
 - ADR numbering is centralized in `adr-writer` with a deduplication procedure — this is intentional to prevent collisions. Do not add parallel ADR creation without a numbering coordinator.
 - The safe parallelism policy in the orchestrator is load-bearing — relaxing it risks file corruption when multiple agents write overlapping targets.
+
+### `generate-prd`
+- The orchestrator (`generate-prd.md`) is the source of truth for the STEP 0–6 phase machine, checkpoint-before-API-call invariant, stuck-loop fault detection, and state schema version. Agent files must stay consistent with what the orchestrator expects.
+- The state schema (`schema/state.schema.json`) is versioned. If you change the schema shape, bump `schema_version`, add a migration script at `schema/migrations/v<from>-to-v<to>.py`, and update the orchestrator's STEP 0 version check.
+- The `/effort` schedule in the orchestrator (Opus for `prd-critic`, Sonnet for everything else) is intentional — do not flatten it without reviewing the model/effort policy in `CLAUDE.md` § Model and Effort Policy.
+- After any change to orchestrator or agent files, run `pytest generate-prd/tests/` to confirm the 94-test static suite still passes.
 
 ## Conventions
 

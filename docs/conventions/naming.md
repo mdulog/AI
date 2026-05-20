@@ -1,6 +1,6 @@
 # Naming Conventions
 
-This project is a pure-markdown Claude Code skill. Naming conventions apply to file names, folder names, YAML frontmatter identifiers, model declarations, and the naming patterns the orchestrator imposes on generated output in target projects.
+This document covers naming conventions for both Claude Code skills in this repository: `generate-knowledge-base` and `generate-prd`. Conventions apply to file names, folder names, YAML frontmatter identifiers, model declarations, and the naming patterns each orchestrator imposes.
 
 These conventions distinguish **required patterns** (declared or enforced in the orchestrator/agent files) from **observed conventions** (recurring across files but not formally enforced).
 
@@ -20,6 +20,17 @@ Every agent file uses kebab-case for its filename, and the filename (without `.m
 | `spec-auditor.md` | `spec-auditor` |
 
 This alignment is load-bearing. The orchestrator's STEP 0 verification checks for files by path (`.claude/agents/{name}.md`), and the `Agent` tool invokes agents by their `name` field. A mismatch causes STEP 0 to halt with a "missing agent" error.
+
+The same rule applies to `generate-prd`:
+
+| File | `name` field |
+|---|---|
+| `transcript-normalizer.md` | `transcript-normalizer` |
+| `transcript-distiller.md` | `transcript-distiller` |
+| `theme-clusterer.md` | `theme-clusterer` |
+| `prd-drafter.md` | `prd-drafter` |
+| `prd-critic.md` | `prd-critic` |
+| `prd-finalizer.md` | `prd-finalizer` |
 
 ### Observed: Agent Name Pattern `{function}-{role}`
 

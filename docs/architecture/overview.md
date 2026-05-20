@@ -4,6 +4,8 @@
 
 This repository contains two sibling Claude Code skills. This document covers `generate-knowledge-base`; the `generate-prd` skill has its own design spec at [`docs/specs/2026-05-15-generate-prd-design.md`](../specs/2026-05-15-generate-prd-design.md) and user docs under `generate-prd/docs/`. The two skills share design DNA (markdown-orchestrator + subagent pattern, MADR ADRs) but are never coupled — they run independently and do not read each other's outputs.
 
+Unlike `generate-knowledge-base`, `generate-prd` additionally ships a versioned JSON Schema (`schema/state.schema.json`) with a schema-migration scaffolding (`schema/migrations/`), a 94-test static pytest suite (`tests/`), a golden-corpus regression harness (`tests/golden-corpus/`), and runtime prompt files (`prompts/`) that are read by agents at runtime but not deployed. These assets have no equivalent in `generate-knowledge-base`.
+
 ## System Purpose
 
 `generate-knowledge-base` is a Claude Code custom slash-command skill (`/generate-knowledge-base`) plus six subagents that, when deployed into a target project's `.claude/` folder, produce an evidence-based knowledge base under that project's `docs/` tree.

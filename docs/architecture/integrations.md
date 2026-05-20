@@ -122,7 +122,9 @@ This repository's own `.claude/` directory is local dev-time configuration for w
 
 ## Things This Project Does Not Integrate With
 
-To preempt audit confusion: this project has no integration with any of the following.
+*Scope: `generate-knowledge-base` runtime surface only. `generate-prd` ships a Python test harness (`requirements-dev.txt`) and its design spec describes a planned v2 CLI on the Anthropic SDK; see `docs/specs/2026-05-15-generate-prd-design.md`.*
+
+To preempt audit confusion: the `generate-knowledge-base` skill has no integration with any of the following at runtime.
 
 - HTTP frameworks, REST or GraphQL clients/servers — there is no network surface.
 - Databases (relational or otherwise), ORMs, migration tools.
@@ -135,9 +137,19 @@ To preempt audit confusion: this project has no integration with any of the foll
 
 This is why no `OUTPUT_ROOT/reference/api.md` exists in this repository: there are no APIs to document, so the file is not created (not even as a stub). The folder exists (tracked by `.gitkeep` from STEP 0) but remains empty by design — the absence of `api.md` is the correct shape per `spec-writer.md` § API-presence rule.
 
-## Dev Tooling (not part of the skill)
+## Dev Tooling (not part of either skill)
+
+### `scripts/smoke_grade.py` (`generate-knowledge-base`)
 
 `scripts/smoke_grade.py` is an ad-hoc LLM-judge regression grader that uses the Anthropic Python SDK and Pydantic. It is invoked manually outside the Claude Code workflow and is not consumed by the orchestrator or any subagent at runtime. It is not part of the deployable skill — it is excluded from the `.claude/agents/` and `.claude/commands/` copy step. The script pins a specific model ID (`JUDGE_MODEL = "claude-opus-4-7"`) under the dev-tooling carve-out codified in `CLAUDE.md` § Model and Effort Policy: the Anthropic SDK does not resolve generic aliases like `opus`, so dev tooling that calls the SDK directly must use exact model IDs. The pin is bumped on model launches, not removed.
+
+### `scripts/hooks/` + `scripts/install-hooks.sh` (repo-wide)
+
+`scripts/hooks/pre-push` is a git pre-push hook that blocks pushes when `generate-knowledge-base/` or `generate-prd/` skill files have changed since the last docs commit. It enforces the docs-sync workflow: run `/generate-knowledge-base mode=light`, commit the updated docs, then push. Install per clone with `bash scripts/install-hooks.sh`. Bypass with `git push --no-verify` when intentional (e.g. the docs commit IS the push). The hook is repo-wide and covers both skills.
+
+### `generate-prd/tests/` + `generate-prd/requirements-dev.txt`
+
+`generate-prd` ships a 94-test static pytest suite. Dev dependencies are in `generate-prd/requirements-dev.txt` (`pytest`, `jsonschema`, `pyyaml`). No Anthropic SDK or API key is required to run the suite — all tests are structural assertions against prompt files and schema artifacts. See `docs/conventions/testing.md` § `generate-prd` Testing for the full layout and run instructions.
 
 ## Assumptions
 

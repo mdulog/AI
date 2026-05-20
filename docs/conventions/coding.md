@@ -1,6 +1,8 @@
 # Coding Conventions
 
-This project is a pure-markdown Claude Code skill. There is no compiled code, no build system, no test runner, and no runtime dependencies beyond the Claude Code harness. "Code" here means YAML frontmatter and structured markdown prompts that the runtime interprets at invocation time.
+This document covers coding conventions for the **`generate-knowledge-base`** skill — a pure-markdown Claude Code skill with no compiled code, no build system, no test runner, and no runtime dependencies beyond the Claude Code harness. "Code" here means YAML frontmatter and structured markdown prompts that the runtime interprets at invocation time.
+
+The sibling `generate-prd` skill additionally ships Python test code (`generate-prd/tests/`) and a JSON Schema (`generate-prd/schema/state.schema.json`). Python conventions for that code are not yet formally documented; contributors should follow standard Python style (PEP 8, type hints, no magic numbers) until a dedicated convention doc is added.
 
 These conventions distinguish **required patterns** (declared or enforced by the orchestrator/agent files themselves) from **observed conventions** (recurring across files but not formally enforced).
 
