@@ -105,7 +105,7 @@ STEP 7   — Apply corrections: High and Medium issues fixed after user review (
 STEP 8   — Finalize CLAUDE.md: update doc references to reflect new taxonomy
 ```
 
-See [`Agents/README.md`](Agents/README.md) for what each subagent does.
+See [`Agents/README.md`](Agents/README.md) for what each subagent does. For a detailed install guide and troubleshooting, see [`docs/install.md`](docs/install.md). For a worked example of a full run, see [`docs/walkthrough.md`](docs/walkthrough.md).
 
 ## CLAUDE.md integration
 
