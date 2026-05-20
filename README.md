@@ -1,3 +1,14 @@
+# Claude Code Skills
+
+A collection of multi-agent Claude Code skills. Each skill is a markdown orchestrator + subagents deployed into a target project via `.claude/commands/` and `.claude/agents/`.
+
+| Skill | Command | What it does |
+|---|---|---|
+| [`generate-knowledge-base`](#generate-knowledge-base) | `/generate-knowledge-base` | Generates architecture docs, conventions, specs, ADRs, and API reference for any codebase |
+| [`generate-prd`](#generate-prd) | `/generate-prd` | Turns customer conversation transcripts into a PRD via a typed-critic discovery loop |
+
+---
+
 # generate-knowledge-base
 
 Generate a living knowledge base for any software project in a single Claude Code command.
@@ -147,6 +158,80 @@ Only created when the project exposes or consumes meaningful APIs. Expected for 
 
 **ADRs describe decisions I don't agree with**
 The `adr-writer` only records decisions evident in the code. If an ADR seems off, the underlying code pattern may be inconsistent — the ADR is surfacing a real signal.
+
+---
+
+# generate-prd
+
+Turn customer conversation transcripts into a PRD via an unbounded discovery loop with a typed critic.
+
+## What it does
+
+Drop conversation transcripts (Zoom/Teams VTT, Granola export, Word paste, hand-typed notes) into `transcripts/` and run `/generate-prd`. The skill:
+
+1. **Normalizes** every transcript to a canonical speaker-turn format, applying a glossary for transcription-error fixes.
+2. **Distills** each transcript independently into problems, jobs-to-be-done, pains, personas, and customer-proposed solutions — with `[T<id>:<timestamp>]` citations.
+3. **Clusters** distillations into cross-transcript themes with frequency counts and contradictions surfaced.
+4. **Drafts** a PRD where evidence-anchored sections are populated from themes and PM-judgment sections are deliberately left empty.
+5. **Enters a discovery loop** with you. Every iteration: a read-only critic surfaces typed findings; you discuss; the drafter refines. **No iteration cap. Closure is yours alone — type `/done` when you decide.**
+6. **Finalizes** with a completeness/citations/recommendations report.
+
+The skill never reads the host codebase — all discovery is grounded in the transcripts and your judgment.
+
+## Quick start
+
+```bash
+# 1. Deploy the orchestrator and agents
+mkdir -p .claude/commands .claude/agents
+cp /path/to/generate-prd/generate-prd.md .claude/commands/
+cp /path/to/generate-prd/Agents/*.md .claude/agents/
+
+# 2. Put transcripts in your project root
+mkdir transcripts/
+# copy .vtt, .srt, .md, or .txt transcript files here
+
+# 3. Run in Claude Code
+/generate-prd
+```
+
+## The 7 critic finding types
+
+| Type | What it surfaces |
+|---|---|
+| `CONTRADICTION` | The draft disagrees with what the transcripts actually said |
+| `COVERAGE_GAP` | A high-frequency theme is missing from the PRD |
+| `UNSUPPORTED_ASSUMPTION` | A claim has no transcript backing and no PM justification |
+| `SOLUTION_BIAS` | A section anchors on implementation rather than capability |
+| `GOAL_METRIC_MISMATCH` | A goal has no matching metric, or vice versa |
+| `PERSONA_STORY_MISMATCH` | A user story names a persona not declared in Target Users |
+| `EVIDENCE_THIN` | A claim cites very few transcripts relative to the weight it carries |
+
+## Loop commands
+
+| Command | Effect |
+|---|---|
+| Enter | Discuss the recommended finding |
+| `/refine` | Apply the discussion's resolution to the PRD, then continue |
+| `/skip` | Skip the iteration without changing the draft |
+| `/pause` | Save state and exit cleanly |
+| `/done` | Exit the loop and finalize |
+| `/status` | Show iterations, Q&A count, cost estimate, and finding density |
+
+## Repository structure
+
+```
+generate-prd/
+  generate-prd.md        Orchestrator (deploy to .claude/commands/)
+  Agents/                6 subagents (deploy to .claude/agents/)
+  prompts/               7 prompt files (read at runtime, not deployed)
+  schema/                State schema, PRD template, transcript format, migrations
+  tests/                 94-test static suite + golden corpus + durability playbooks
+  docs/                  README, install guide, walkthrough
+```
+
+Full docs: [`generate-prd/README.md`](generate-prd/README.md) · [Install guide](generate-prd/docs/install.md) · [Walkthrough](generate-prd/docs/walkthrough.md)
+
+---
 
 ## License
 
