@@ -1,6 +1,6 @@
 # Product Behavior Overview
 
-This document describes what `generate-knowledge-base` does from the user's perspective: the public command surface, the workflows a user actually runs, the files that appear in their project as a result, the prompts they will see, and the guarantees the skill makes about safety and idempotency.
+This document describes what `generate-knowledge-base` does from the user's perspective. For the sibling `generate-prd` skill, see [`generate-prd/README.md`](../../generate-prd/README.md) and the design spec at [`2026-05-15-generate-prd-design.md`](./2026-05-15-generate-prd-design.md). This document covers `generate-knowledge-base` only.: the public command surface, the workflows a user actually runs, the files that appear in their project as a result, the prompts they will see, and the guarantees the skill makes about safety and idempotency.
 
 For structural details (orchestrator internals, agent topology, parallelism rules), see [`architecture/overview.md`](../architecture/overview.md) and [`architecture/components.md`](../architecture/components.md). For the conventions enforced on generated docs, see [`conventions/`](../conventions/).
 

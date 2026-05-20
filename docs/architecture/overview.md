@@ -1,5 +1,9 @@
 # Architecture Overview
 
+## Repository Scope
+
+This repository contains two sibling Claude Code skills. This document covers `generate-knowledge-base`; the `generate-prd` skill has its own design spec at [`docs/specs/2026-05-15-generate-prd-design.md`](../specs/2026-05-15-generate-prd-design.md) and user docs under `generate-prd/docs/`. The two skills share design DNA (markdown-orchestrator + subagent pattern, MADR ADRs) but are never coupled — they run independently and do not read each other's outputs.
+
 ## System Purpose
 
 `generate-knowledge-base` is a Claude Code custom slash-command skill (`/generate-knowledge-base`) plus six subagents that, when deployed into a target project's `.claude/` folder, produce an evidence-based knowledge base under that project's `docs/` tree.

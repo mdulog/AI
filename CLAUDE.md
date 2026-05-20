@@ -4,14 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository is a **Claude Code skill** called `generate-knowledge-base`. It provides a multi-agent orchestration workflow that analyzes any software project and generates a structured knowledge base: architecture docs, conventions, specs, ADRs, and API references.
+This repository is a **collection of Claude Code skills** — multi-agent orchestration workflows deployed into target projects as custom slash commands. Two skills currently live here:
 
-The skill is not a standalone application — it is deployed _into_ target projects as a Claude Code custom command (`/generate-knowledge-base`) and invoked from within those projects.
+| Skill | Command | Purpose |
+|---|---|---|
+| `generate-knowledge-base` | `/generate-knowledge-base` | Analyzes any software project and generates a structured knowledge base: architecture docs, conventions, specs, ADRs, and API references. |
+| `generate-prd` | `/generate-prd` | Turns customer conversation transcripts into a PRD via a typed-critic discovery loop. Pure-conversation discovery — never reads the host codebase. |
+
+Neither skill is a standalone application. Both are deployed _into_ target projects via `.claude/commands/` and `.claude/agents/` and invoked from within those projects.
 
 ## Repository Structure
 
-- `generate-knowledge-base/generate-knowledge-base.md` — The orchestrator skill definition. This is the main entry point, deployed to `.claude/commands/` in target projects. It defines a 12-step phase-based workflow (STEP 0 through STEP 8, including intermediate steps 0.4, 0.5, 0.6) that delegates analytical work to subagents.
-- `generate-knowledge-base/Agents/*.md` — Six subagent definitions deployed to `.claude/agents/` in target projects. Each agent has a specific role in the workflow (see below).
+**`generate-knowledge-base/`**
+- `generate-knowledge-base.md` — Orchestrator skill definition. Deploys to `.claude/commands/`. Defines a 12-step phase-based workflow (STEP 0 through STEP 8) that delegates analytical work to subagents.
+- `Agents/*.md` — Six subagent definitions deployed to `.claude/agents/`.
+
+**`generate-prd/`**
+- `generate-prd.md` — Orchestrator skill definition. Deploys to `.claude/commands/`. Defines a 7-step workflow (STEP 0–6): normalize → distill → cluster → draft → discovery loop → finalize.
+- `Agents/*.md` — Six subagent definitions deployed to `.claude/agents/`.
+- `prompts/` — Seven prompt files read at runtime by the agents (not deployed).
+- `schema/` — State schema (JSON Schema draft 2020-12), PRD template, transcript format spec, migration scaffolding.
+- `tests/` — Static test suite (96 tests, no API key required) + golden corpus + durability playbooks.
+- `docs/` — User-facing README, install guide, and walkthrough.
 
 ## Architecture
 
