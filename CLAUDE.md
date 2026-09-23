@@ -245,6 +245,7 @@ Four phases, one pipeline:
 - `/fast` is a separate, manual toggle that the routing in both bullets above doesn't account for: it forces Opus with faster output (never downgrades to a smaller model) in any permission mode, including `auto`. It's an override on top of the plan/auto routing, not a replacement for it — if it's on, neither "rests on Sonnet otherwise" nor "no separate action needed... it's the resting state" holds until it's toggled off.
 - If the target project is a git repo with no doc baseline (no root `README.md` AND no `docs/` taxonomy), include an explicit "establish doc baseline" step in the plan itself — authored as part of `superpowers:writing-plans`, before any implementation step — invoking the `docs-as-code-baseline` skill (see 📖 Docs-as-Code Baseline) rather than deferring doc creation to the 🚢 Before Push gate. Surfacing it upfront lets the doc scope get reviewed and approved alongside the rest of the plan instead of landing unannounced right before push. Skip this step, and ask first, if the project looks intentionally doc-less (private script folder, monorepo subpackage, spike/scratch dir, non-repo working directory) — don't assume every doc-less project wants a baseline.
 - Before presenting a plan to me for approval (via `ExitPlanMode` or otherwise), launch a separate `spec-auditor` agent against the drafted plan to verify every file path, function/service/table name, command, and factual claim it references still matches the current codebase and system state — not stale or hallucinated. This is a distinct gate from 🕵️ Auditing Generated Instructional Documents below: that one covers persisted files after they're written, this one covers the plan itself, which is a conversational proposal and never gets saved as a file. Fix or flag every finding before presenting — don't silently drop one. Skip only for plans trivial enough that Plan Mode itself wouldn't have been triggered (see the bullets above).
+- For a plan whose design depends on an unfamiliar library's runtime behavior (not just its documented API), spike the highest-risk integration point for real — install the dependency and run one real test — before finalizing the plan. A Context7 lookup verifies the API is real; it doesn't verify your code compiles and runs against it.
 
 🌿 When to Use Git Worktrees
 
@@ -264,7 +265,7 @@ Four phases, one pipeline:
 - Any new feature, component, or behavior modification — brainstorm intent and design before planning
 - Whenever the requirements could be satisfied by multiple significantly different approaches
 - For ambiguous requirements, Ouroboros runs first — see 🔄 Development Workflow (Ouroboros → Superpowers) below for where brainstorming sits in that chain
-- Invoking `superpowers:brainstorming` also requires calling `EnterPlanMode` (see 📐 When to Use Plan Mode) — a convention Claude must remember to apply, not harness automation
+- Invoking `superpowers:brainstorming` also requires `EnterPlanMode` — see 📐 When to Use Plan Mode for the rule (not restated here to avoid two sources of truth)
 
 ⏹️ When to Stop and Ask
 
@@ -281,9 +282,9 @@ Four phases, one pipeline:
 
 🛠️ Language & Stack Defaults
 
-- Primary language: **C# / .NET** (latest LTS unless project specifies otherwise)
+- Primary language: **TypeScript / Node.js** (latest LTS unless project specifies otherwise)
 - Frontend: **React / TypeScript** for new/greenfield UI work. For an existing project, match whatever's already there instead (Angular, Vue, etc.) — check the repo (package.json, existing components) before assuming greenfield applies
-- Default test framework: **TUnit** (for .NET), **Jest** (for React). An existing project's frontend tests follow whatever test convention that project already uses, not this default
+- Default test framework: **Jest** (backend and frontend). An existing project's tests follow whatever test convention that project already uses, not this default
 - These are defaults for new/greenfield work — always defer to what a project's CLAUDE.md or existing codebase specifies
 
 🧪 When to Use TDD
@@ -307,6 +308,9 @@ The two systems run as one pipeline, not two bolted-on features:
 
 1. **Requirements → Seed (Ouroboros):** ambiguous requirements go through `ooo interview`/`ooo seed` (or `ooo auto`, which owns its own execution path end-to-end and stays outside this chain) rather than `superpowers:brainstorming` — Ouroboros's Socratic Clarity principle (ambiguity ≤ 0.2) does the same job brainstorming would otherwise do.
 2. **Seed → design review (Superpowers):** as soon as `ooo seed`/`ooo interview` presents a final Seed YAML in chat (the skill returns it inline; it only persists to `~/.ouroboros/seeds/` on the CLI `ouroboros init` path), invoke `superpowers:brainstorming` with the Seed as primary context for implementation-design review — the Seed already fixes _what_, brainstorming here decides _how_. See 🧠 When to Brainstorm First. This requires calling `EnterPlanMode` per 📐 When to Use Plan Mode (a convention, not harness automation); brainstorming's own approval gate still applies. Once that design is approved, invoke `superpowers:writing-plans` to turn it into a plan document — still inside Plan Mode, before `ExitPlanMode` is called — unless the change is bounded enough to skip the plan document entirely (see 🏛️ Core Architecture phase 2).
+   - If `ouroboros_qa`'s advisory verdict on the generated Seed is REVISE or FAIL, always opt into the Wonder → Reflect → Refine → Restate refinement pass before proceeding to brainstorming — never hand-edit the Seed YAML directly to fix QA findings. A convergent finding from multiple independent sources (QA + Socrates + lateral personas) catches gaps a single rewrite misses.
+   - If the design touches authentication, authorization, or a public network surface, run `security-review` (or `pr-review-toolkit:code-reviewer`) against the design section itself — before invoking `writing-plans` — not only against the finished plan via `spec-auditor` later. Catching a flawed access-control design early is far cheaper than finding it after the plan has expanded it into dozens of tasks.
+   - When dispatching Ouroboros interview advisory fan-out subagents, default mechanical/low-judgment lanes (`data_context`, `answer_simplifier`) to Haiku; reserve Sonnet/Opus for lanes requiring deeper reasoning (`ambiguity_contrarian`, gap-hunting, lateral `contrarian`/`architect` personas)
 3. **Plan → isolate → execute:** once the plan is ready (via `superpowers:writing-plans` for the architectural path, or immediately for bounded changes that skip the plan document) and `ExitPlanMode` is called, isolate a worktree (🌿 When to Use Git Worktrees), then execute per 🧪 When to Use TDD, 🛠️ Language & Stack Defaults, 🚀 When to Use Parallel Agents where applicable, and 🔁 Commit Cadence During Implementation.
 4. **Execution → evaluate (Ouroboros):** the moment the plan's work finishes — todos, `superpowers:subagent-driven-development` tasks, or an Ouroboros Seed's execution steps — invoke the `ouroboros:evaluate` skill if the work traces back to an Ouroboros session (it routes to the background `ouroboros_start_evaluate` tool so a rejected verdict can continue through the Ralph convergence chain — never call the synchronous `ouroboros_evaluate` tool directly, it forfeits that continuation); otherwise identify and run the project's real test command per `superpowers:verification-before-completion`'s IDENTIFY/RUN/READ/VERIFY gate. Evaluate's Stage 1 already runs build/test from `.ouroboros/mechanical.toml`; only fall back to a manual run if evaluate was skipped or came back empty.
 5. **Evaluate → done:** feed the test output and evaluate verdict into ✅ Before Claiming Work Complete below, then 🏁 When Implementation Is Complete, then 🚢 Before Push.
@@ -384,66 +388,12 @@ The two systems run as one pipeline, not two bolted-on features:
 - **When new types are introduced**: invoke `pr-review-toolkit:type-design-analyzer`
 - **When error handling or catch blocks are modified**: invoke `pr-review-toolkit:silent-failure-hunter`
 - **After generating large doc comments**: invoke `pr-review-toolkit:comment-analyzer`
-- **After writing or modifying a logical chunk of code**: invoke `pr-review-toolkit:code-simplifier` alongside `pr-review-toolkit:code-reviewer` above for a dedicated smell/simplification pass — narrower than code-reviewer's own duplication/naming checks, and different in kind from every other agent on this list since it **applies** edits directly instead of reporting findings for me to decide on. Its JS/React defaults match the greenfield frontend default in 🛠️ Language & Stack Defaults, but mismatch the C#/.NET backend and any existing Angular/Vue frontend — confirm which case applies before accepting its edits
+- **After writing or modifying a logical chunk of code**: invoke `pr-review-toolkit:code-simplifier` alongside `pr-review-toolkit:code-reviewer` above for a dedicated smell/simplification pass — narrower than code-reviewer's own duplication/naming checks, and different in kind from every other agent on this list since it **applies** edits directly instead of reporting findings for me to decide on. Its JS/React defaults now match both the greenfield backend and frontend defaults in 🛠️ Language & Stack Defaults, but mismatch any existing Angular/Vue frontend or non-Node backend — confirm which case applies before accepting its edits
 - **When receiving unclear or questionable review feedback**: invoke `superpowers:receiving-code-review`
 - Do **not** invoke a `superpowers`-namespaced code-review skill — no such skill currently exists; use the `pr-review-toolkit` variants above for all code review work
 
 ---
 
-🧠 Memory System Preferences
-
-✅ Save Proactively
-
-- **Feedback** memories: whenever I correct Claude's approach or confirm a non-obvious choice worked
-- **User** memories: when role, domain expertise, current focus area, or project context becomes clear
-- **Project** memories: non-obvious goals, deadlines, constraints, or architectural decisions not in the code
-- **Reference** memories: when external systems are named (Linear projects, Grafana dashboards, Slack channels)
-
-❌ Do Not Save
-
-- Code patterns, file paths, or architecture derivable from reading the codebase
-- Git history or recent changes (`git log` is authoritative)
-- Debugging solutions or fix recipes (the fix is in the code; the commit message has the context)
-- Ephemeral task state or in-progress work from the current session
-- PR lists or activity summaries (ask what was _surprising_ or _non-obvious_ instead)
-
-🔧 Memory Hygiene
-
-- Update stale memories rather than creating duplicates — check existing entries first
-- Verify any file path or function name in memory before acting on it — it may have changed
-- Convert relative dates to absolute dates when saving (e.g. "Thursday" → "2026-03-05")
-
 Ouroboros — Specification-First AI Development
 
-> Before telling AI what to build, define what should be built. As Socrates asked 2,500 years ago — "What do you truly know?" Ouroboros turns that question into an evolutionary AI workflow engine.
-
-Most AI coding fails at the input, not the output. Ouroboros fixes this by **exposing hidden assumptions before any code is written**.
-
-1. **Socratic Clarity** — Question until ambiguity ≤ 0.2
-2. **Ontological Precision** — Solve the root problem, not symptoms
-3. **Evolutionary Loops** — Each evaluation cycle feeds back into better specs
-
-`Interview → Seed → Execute → Evaluate     ↑                           ↓     └─── Evolutionary Loop ─────┘`
-
-ooo Commands
-
-Each command loads its agent/MCP on-demand. Details in each skill file.
-
-|Command|Loads|
-|---|---|
-|`ooo`|—|
-|`ooo interview`|`ouroboros:socratic-interviewer`|
-|`ooo seed`|`ouroboros:seed-architect`|
-|`ooo run`|MCP required|
-|`ooo evolve`|MCP: `evolve_step`|
-|`ooo evaluate`|MCP: `ouroboros_start_evaluate` (fallback: `ouroboros:evaluator` agent)|
-|`ooo unstuck`|`ouroboros:{persona}`|
-|`ooo status`|MCP: `session_status`|
-|`ooo setup`|—|
-|`ooo help`|—|
-
-Agents
-
-Loaded on-demand — not preloaded.
-
-**Core**: socratic-interviewer, ontologist, seed-architect, evaluator, wonder, reflect, advocate, contrarian, judge **Support**: hacker, simplifier, researcher, architect
+Socratic-interview-driven spec pipeline (see 🔄 Development Workflow above). For `ooo` command names, which agent/MCP each one loads, and the full agent/persona list, check the live skill and agent registry (see 🧩 Skills (Superpowers)) rather than a static table here — the Ouroboros plugin auto-updates, so a hand-maintained list would silently go stale.
