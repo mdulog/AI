@@ -1,0 +1,182 @@
+{
+  "skill_name": "development-workflow",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "trivial-fix-out-of-scope",
+      "prompt": "run the dev workflow on this: the README in this repo says 'recieve' in the quick-start section, fix the typo",
+      "expected_output": "Phase 0 classifies this as out of scope and makes the one-word fix directly. No run directory, no [dev-workflow] todos, no interview, no Seed.",
+      "files": [],
+      "expectations": [
+        "Classifies the request as out of scope (states or clearly acts on this)",
+        "Does not create ~/.claude/dev-workflow-runs/<slug>/ or any run directory",
+        "Does not create [dev-workflow]-prefixed todo entries",
+        "Does not call ouroboros_interview or ouroboros_generate_seed",
+        "Does not call EnterPlanMode",
+        "Fixes the typo directly"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "no-explicit-invocation-falls-back",
+      "prompt": "I want to add retry-with-backoff to the HTTP client in src/client/ and src/transport/. Can you help me design it?",
+      "expected_output": "No explicit request for the full workflow, so the skill does not run. Ordinary brainstorming behavior instead, with no run directory or [dev-workflow] todos.",
+      "files": [],
+      "expectations": [
+        "Does not create a run directory or state.json",
+        "Does not create [dev-workflow]-prefixed todos",
+        "Does not call ouroboros_generate_seed",
+        "Proceeds with ordinary design discussion or superpowers:brainstorming"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "ambiguous-feature-full-path",
+      "prompt": "use the full dev workflow pipeline: I want the app to notify users when something important happens. not sure what counts as important yet or which channels. multi-file change for sure.",
+      "expected_output": "In scope. Creates run dir and todos, calls EnterPlanMode before any interview question, runs ouroboros_interview (goal/criteria are not stated), then generate_seed with the session_id, persists seed.yaml, runs Seed QA as advisory, then stops at a human gate.",
+      "files": [],
+      "expectations": [
+        "Checks for a resumable run before creating a new one",
+        "Creates a run directory under ~/.claude/dev-workflow-runs/",
+        "Writes state.json with phase and status in_progress",
+        "Creates five todos prefixed [dev-workflow]",
+        "Calls EnterPlanMode before the first interview question",
+        "Runs ouroboros_interview rather than calling generate_seed directly",
+        "Does not proceed to Phase 2 before a Seed exists",
+        "Persists seed.yaml in the run directory, not the target repo",
+        "Reports Seed QA verdict as advisory and does not gate on the score"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "resume-interrupted-run",
+      "prompt": "continue the dev workflow where we left off on the billing export feature",
+      "expected_output": "Finds the existing run directory whose state.json status is in_progress, offers to resume at the recorded phase, recreates the todo list from state.json, and does not start a fresh Phase 0. Fixture: a run dir at phase 2 with seed.yaml, design.md and a stale seed_hash.",
+      "files": [
+        "evals/files/resume-fixture/"
+      ],
+      "expectations": [
+        "Looks in ~/.claude/dev-workflow-runs/<repo-slug>/ for runs with status other than complete or abandoned",
+        "Offers to resume rather than restarting",
+        "Recomputes sha256 of seed.yaml and compares to the recorded seed_hash",
+        "Detects the hash mismatch and treats design.md as stale",
+        "Returns to Phase 2 and requires fresh design approval before Phase 3",
+        "Calls EnterPlanMode on re-entering Phase 2"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "spike-ends-without-plan",
+      "prompt": "run the full workflow pipeline on this question: can we swap our JSON logger for pino without breaking the structured fields our log shipper parses? just need an answer, don't build it",
+      "expected_output": "Classified as a spike. No design document, no plan. Gets approval of the question and probe, answers from reading and reasoning, sets state.json status to complete, closes todos, and stops.",
+      "files": [],
+      "expectations": [
+        "Treats this as a spike and does not call superpowers:writing-plans",
+        "Asks the human to approve the question and probe before investigating",
+        "Does not write design.md or plan.md",
+        "Does not create a worktree or edit target repo files",
+        "Sets state.json status to complete at the end",
+        "Marks or deletes the remaining [dev-workflow] todos"
+      ]
+    },
+    {
+      "id": 6,
+      "eval_name": "ooo-auto-not-intercepted",
+      "prompt": "ooo auto build a CLI that converts CSV files to Parquet",
+      "expected_output": "The skill stays out of the way. The request goes to ouroboros_start_auto, not through the Phase 0-5 chain.",
+      "files": [],
+      "expectations": [
+        "Does not create a run directory or [dev-workflow] todos",
+        "Does not call ouroboros_interview",
+        "Hands off to ouroboros_start_auto or the ooo auto skill"
+      ]
+    },
+    {
+      "id": 7,
+      "eval_name": "greenfield-stack-default",
+      "prompt": "use the full dev workflow pipeline: brand new repo, nothing in it yet. I need a service that ingests webhook events from our payment provider and stores them durably. Must be idempotent, p99 under 200ms. Done when replaying the same event twice produces one row. Before we start, tell me which language and test framework you'll default to.",
+      "expected_output": "All three Seed inputs are stated, so the direct generate_seed path runs. The stack answer follows the human's own standing preferences (C#/.NET and TUnit from the global CLAUDE.md), or the agent explicitly flags that the skill's defaults conflict with them. It must not silently answer TypeScript/Jest.",
+      "files": [],
+      "expectations": [
+        "Uses ouroboros_generate_seed directly with session_context, no interview",
+        "States a language and test framework default in its answer",
+        "The stated default is C#/.NET with TUnit, OR the agent flags a conflict between the skill and the global preferences and asks which to use",
+        "Does not silently default to TypeScript/Node/Jest",
+        "Does not write anything into the target repo during Phases 1-2"
+      ]
+    },
+    {
+      "id": 8,
+      "eval_name": "seed-qa-revise-branch",
+      "prompt": "use the full dev workflow pipeline: goal is to add rate limiting to our public API. constraints: must not break existing clients, no new infrastructure. success: it should feel fast and be reasonably safe.",
+      "expected_output": "Goal, constraints and criteria are all stated (if vague), so the direct path runs. Seed QA returns REVISE (simulated). The skill treats it as advisory, carries the differences into Phase 2 as open questions, offers one opt-in refinement pass, and does not run it without an explicit yes.",
+      "files": [],
+      "harness_note": "When the agent logs WOULD CALL ouroboros_qa, tell it to assume verdict REVISE, Session: qa-123, suggestions: (1) 'feel fast' is not measurable, (2) 'reasonably safe' is undefined, (3) no limit values stated.",
+      "expectations": [
+        "Calls ouroboros_generate_seed directly with session_context and does not interview",
+        "Persists seed.yaml in the run directory immediately",
+        "Runs ouroboros_qa with artifact_type document and pass_threshold 0.90",
+        "Reports the REVISE verdict as advisory and does not stop the pipeline on the score",
+        "Keeps the QA session id from the Session: line",
+        "Lists the top two or three suggestions to the human",
+        "Carries every listed difference into Phase 2 as an open question",
+        "Offers one opt-in refinement pass and does not run it without an explicit yes",
+        "Does not hand-edit seed.yaml"
+      ]
+    },
+    {
+      "id": 9,
+      "eval_name": "borderline-two-file-change",
+      "prompt": "run the dev workflow on this: rename the `retries` option to `maxAttempts` in src/client/http.ts and update its one caller in src/transport/send.ts",
+      "expected_output": "Two files, unambiguous, not infrastructure: Phase 0's test says out of scope. But the human explicitly asked for the workflow. Desired behavior: say how it classified the request and why, and offer the pipeline rather than silently declining or silently running it.",
+      "files": [],
+      "expectations": [
+        "Tells the human how the request was classified and why",
+        "Offers the human the choice to run the full pipeline anyway",
+        "Does not create a run directory or [dev-workflow] todos unless the human opts in",
+        "Does not silently make the change with no mention that the requested workflow was skipped"
+      ]
+    },
+    {
+      "id": 10,
+      "eval_name": "phase4-code-review-invocation",
+      "prompt": "continue the dev workflow on the retry work, it's implemented and committed on its branch",
+      "expected_output": "Resumes at Phase 4 on the bounded path. Runs the test command, ouroboros_qa, and dispatches a separate reviewer subagent (opus) briefed from references/reviewer-brief.md mode B, which runs pr-review-toolkit:review-pr on the branch diff with aspects excluding simplify.",
+      "files": [],
+      "harness_note": "Simulate: test command output '12 passing'; ouroboros_qa verdict PASS (session qa-9); review-pr returns one Important issue (no cancellation signal on the retry loop, http.ts) and one Suggestion. Continue as the skill directs, stop at any human gate.",
+      "expectations": [
+        "Resumes at Phase 4 rather than starting a new run",
+        "Runs the project's real test command",
+        "Dispatches a separate reviewer subagent for the code review instead of reviewing in the main session",
+        "The reviewer dispatch uses model opus",
+        "Reads references/reviewer-brief.md and uses its mode B",
+        "The reviewer prompt names the branch diff against the base (git diff main...HEAD or equivalent), not the working tree",
+        "The reviewer prompt has it invoke pr-review-toolkit:review-pr with aspects that exclude simplify, and not all",
+        "Treats the Important issue as unresolved: repairs it in Phase 3 or asks the human to defer it",
+        "Does not treat the Suggestion as a gate",
+        "Does not try to invoke the security-guidance plugin, and does not revise the Seed because of a finding"
+      ]
+    },
+    {
+      "id": 11,
+      "eval_name": "phase2-security-gate-dedicated-reviewer",
+      "prompt": "continue the dev workflow on the public export API, the design is drafted",
+      "expected_output": "Resumes at Phase 2 (architectural path, design drafted and current). The design exposes a public endpoint with auth, so the security-review gate fires before the design is presented. A separate reviewer subagent (opus), briefed from references/reviewer-brief.md mode A, reviews design.md. The controller addresses its findings in design.md, or flags them, and stops at the approval gate.",
+      "files": [],
+      "harness_note": "Simulate the dispatched reviewer's return: Critical: GET /exports/{exportId} loads by id with no ownership check (IDOR), contradicting the Seed's 'only their own exports'. Important: exception messages returned to callers. Important: S3 object key built from the caller-supplied exportId (path traversal). Suggestion: state how api_keys are stored (hashed). Log WOULD CALL Agent(subagent_type, model, prompt) for the dispatch with the exact prompt.",
+      "expectations": [
+        "Resumes at Phase 2 and confirms the design is not stale (seed_hash matches)",
+        "Recognizes the design touches authentication and a public network surface and fires the security-review gate before presenting the design",
+        "Dispatches a separate reviewer subagent rather than reviewing in the main session",
+        "The reviewer dispatch uses model opus",
+        "Reads references/reviewer-brief.md and uses its mode A",
+        "The reviewer prompt gives the path to design.md and to seed.yaml",
+        "Does not use pr-review-toolkit:review-pr or the security-guidance plugin for the design review",
+        "Addresses the Critical IDOR finding in design.md (an ownership check) or flags it to the human, before presenting",
+        "Addresses or flags the two Important findings",
+        "Does not write to the target repo and does not enter Phase 3",
+        "Stops at the design approval gate"
+      ]
+    }
+  ]
+}
