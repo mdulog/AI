@@ -238,24 +238,29 @@ The skill is a single `SKILL.md` that acts as a resumable state machine. It stop
 |---|---|
 | 0. Classify | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). Out-of-scope work, such as a typo fix, is done directly with no run. |
 | 1. Requirements → Seed | Interviews you if goal, constraints, and success criteria aren't all stated, then generates a Seed spec. Runs in plan mode. |
-| 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. |
+| 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. If the design touches auth or a public network surface, a separate reviewer subagent checks it for security risks before you see it. |
 | 3. Isolate & execute | Creates a git worktree for the branch (skipped outside a git repo), then implements with TDD. Architectural plans run through `superpowers:subagent-driven-development`, and bounded changes run inline. |
-| 4. Evaluate | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and runs code review when a review skill or agent is installed. A REVISE or FAIL verdict is reported to you, never auto-retried. |
+| 4. Evaluate | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a separate reviewer subagent to run `pr-review-toolkit:review-pr` on the branch diff. A REVISE or FAIL verdict is reported to you, never auto-retried. |
 | 5. Finish & push | Checks docs are in sync, verifies, then finishes the branch. |
 
 ## Requirements
 
 - The [Ouroboros](https://github.com/Q00/ouroboros) plugin (the `ouroboros_*` MCP tools)
 - The `superpowers` and `pr-review-toolkit` plugins
-- The conventions in this repo's [`CLAUDE.md`](CLAUDE.md), which the skill defers to for model policy and review order
+- `"model": "opusplan"` in `~/.claude/settings.json`, so planning runs on Opus and implementation on Sonnet. Keep `/fast` off during Phase 3, since it forces Opus everywhere.
+- For `ouroboros_qa` to run on Opus, `~/.ouroboros/config.yaml` sets `models.pin: true` and `llm.qa_model: opus`. Without it QA runs on Sonnet, and the skill tells you so before the Seed check.
+
+The skill carries its own model policy, commit rules, and review order, so it doesn't depend on this repo's [`CLAUDE.md`](CLAUDE.md). Its greenfield stack defaults (C#/.NET with TUnit, React/TypeScript with Jest) copy the ones in that file. If your own `CLAUDE.md` names a different stack, the skill asks which to use.
 
 ## Quick start
 
 ```bash
 # Install as a user-level skill
 mkdir -p ~/.claude/skills/development-workflow
-cp development-workflow/SKILL.md ~/.claude/skills/development-workflow/
+cp -r development-workflow/SKILL.md development-workflow/references ~/.claude/skills/development-workflow/
 ```
+
+`SKILL.md` points to files under `references/`, so copy the directory along with it. The installed copy is a plain copy, not a link: after editing the repo, run the same command again.
 
 Then ask for it by name in Claude Code:
 
@@ -271,8 +276,13 @@ Seed, design, and plan files are never written into the target repo. Each run ge
 
 ```
 development-workflow/
-  SKILL.md    The skill (deploy to ~/.claude/skills/development-workflow/)
-  DESIGN.md   Design rationale, audit history, and later changes
+  SKILL.md      The skill (deploy to ~/.claude/skills/development-workflow/)
+  references/   Detail that SKILL.md loads at the phase that needs it: seed generation
+                edge cases, Seed QA, doc baseline, Phase 3 execution, Phase 4 QA, and
+                the reviewer subagent brief
+  evals/        evals.json (11 test prompts with expectations) and files/
+                build-fixtures.sh for the sandboxes they run in
+  DESIGN.md     Design rationale, audit history, and later changes
 ```
 
 ---
