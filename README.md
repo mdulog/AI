@@ -6,6 +6,7 @@ A collection of multi-agent Claude Code skills. Each skill is a markdown orchest
 |---|---|---|
 | [`generate-knowledge-base`](#generate-knowledge-base) | `/generate-knowledge-base` | Generates architecture docs, conventions, specs, ADRs, and API reference for any codebase |
 | [`generate-prd`](#generate-prd) | `/generate-prd` | Turns customer conversation transcripts into a PRD via a typed-critic discovery loop |
+| [`development-workflow`](#development-workflow) | `/development-workflow` | Runs an engineering task through the Ouroboros → Superpowers pipeline with human gates and resumable state |
 
 ---
 
@@ -222,6 +223,57 @@ generate-prd/
 ```
 
 Full docs: [`generate-prd/README.md`](generate-prd/README.md) · [Install guide](generate-prd/docs/install.md) · [Walkthrough](generate-prd/docs/walkthrough.md)
+
+---
+
+# development-workflow
+
+Run a piece of engineering work through a six-phase pipeline that combines Ouroboros (requirements and evaluation) with Superpowers (planning and execution).
+
+## What it does
+
+The skill is a single `SKILL.md` that acts as a resumable state machine. It stops at every human gate the pipeline requires and writes its own artifacts to disk, so a new session can pick a run back up. It is opt-in: it only runs when you explicitly ask for the dev workflow or full pipeline, and it never blocks direct use of `superpowers:brainstorming` or the Ouroboros tools.
+
+| Phase | What happens |
+|---|---|
+| 0. Classify | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). Out-of-scope work, such as a typo fix, is done directly with no run. |
+| 1. Requirements → Seed | Interviews you if goal, constraints, and success criteria aren't all stated, then generates a Seed spec. Runs in plan mode. |
+| 2. Design review & plan | Brainstorms a design against the Seed and writes an implementation plan. |
+| 3. Isolate & execute | Sets up an isolated workspace and implements the plan with TDD. |
+| 4. Evaluate | Reviews the result with the code-review agents and `ouroboros_qa`. |
+| 5. Finish & push | Checks docs are in sync, verifies, then finishes the branch. |
+
+## Requirements
+
+- The [Ouroboros](https://github.com/Q00/ouroboros) plugin (the `ouroboros_*` MCP tools)
+- The `superpowers` and `pr-review-toolkit` plugins
+- The conventions in this repo's [`CLAUDE.md`](CLAUDE.md), which the skill defers to for model policy and review order
+
+## Quick start
+
+```bash
+# Install as a user-level skill
+mkdir -p ~/.claude/skills/development-workflow
+cp development-workflow/SKILL.md ~/.claude/skills/development-workflow/
+```
+
+Then ask for it by name in Claude Code:
+
+```
+/development-workflow add rate limiting to the upload endpoint
+```
+
+## Where artifacts go
+
+Seed, design, and plan files are never written into the target repo. Each run gets its own directory at `~/.claude/dev-workflow-runs/<repo-slug>/<YYYY-MM-DD>-<task-slug>/`, alongside a `state.json` that records status and completed steps for resuming.
+
+## Repository structure
+
+```
+development-workflow/
+  SKILL.md    The skill (deploy to ~/.claude/skills/development-workflow/)
+  DESIGN.md   Design rationale, audit history, and later changes
+```
 
 ---
 
