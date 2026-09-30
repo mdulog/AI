@@ -1,0 +1,56 @@
+# Phase 3 execution details
+
+Loaded from `SKILL.md` (Phase 3, before dispatching implementers). Section names below refer to sections of `SKILL.md`. Text is moved verbatim from there; the rules in `SKILL.md` still apply.
+
+- Invoke `superpowers:test-driven-development` per task. For a multi-task
+  plan (which exists only on the architectural path, since SDD needs a plan
+  file), invoke `superpowers:subagent-driven-development`. On the bounded path
+  there is no plan: implement inline with test-driven-development, don't
+  invoke SDD, and note that the Phase 4 code review is then required. SDD runs one
+  implementation subagent at a time with a review after each and forbids
+  parallel implementers, so do not fan implementation out through it. Run
+  tasks in parallel only if the human asks for it, only when the approved
+  plan lists the files each task touches and those lists are disjoint, and
+  then via `superpowers:dispatching-parallel-agents`. The `Files:` block
+  (Create / Modify / Test) that `superpowers:writing-plans` writes into each
+  task is that list, so it exists on the architectural path. The bounded
+  path has no plan document, so it always stays serial. If the plan doesn't
+  show disjoint files, stay serial and say why. In the parallel case the
+  controller makes all commits after integration and tells each parallel
+  agent not to commit, because concurrent agents
+  committing in one worktree contend for the git index lock, and runs the
+  full test suite. No per-task review happens there, so the Phase 4 code
+  review is required.
+- Follow `subagent-driven-development` through its Finish section and surface
+  its "Rulings I made" list and any residual findings from its final review
+  to the human. Skip only its final handoff to
+  `superpowers:finishing-a-development-branch`: return to Phase 4 instead.
+  Finishing runs only at Phase 5 step 3, after `ouroboros_qa` and the
+  doc-sync check. SDD's Finish step deletes its workspace when the final
+  review is clean. Phase 4 doesn't need that ledger, but copy anything you
+  want to keep (the Rulings list, review packages) into the run directory
+  first. When dispatching SDD's final whole-branch review, pass the
+  review-package path and name the most capable model explicitly; the
+  reviewer template has no field for either.
+
+## Implementer commit brief
+
+  - `subagent-driven-development` implementers commit on their own, so put
+    these commit rules (explicit staging, never onto `main`/`master`, the
+    subject-line rule, no push) in each implementer's brief. Add one more: any
+    trailer (such as `Co-Authored-By`) goes after a blank line, never directly
+    under the subject, or git folds it into the subject. Give the implementer
+    the exact trailer text to use. After each implementer, check
+    `git log -1 --format=%B` for the blank line, the subject length, and that
+    exact trailer text. If a message breaks the rules, report it to the human
+    instead of rewriting history unasked.
+
+## SDD workspace
+
+- One exception: `subagent-driven-development` keeps a git-ignored workspace
+  at `<repo-root>/.superpowers/sdd/<plan-name>/` inside the target repo. It
+  deletes that subdirectory only when its final whole-branch review is clean;
+  a `.gitignore` inside `.superpowers/sdd/` stays. SDD names the workspace
+  after the plan file's basename (`.superpowers/sdd/plan/`). If another run's
+  workspace already holds that name, its script falls back to
+  `.superpowers/sdd/plan-<run-dir-name>/`. Use the path the script prints;

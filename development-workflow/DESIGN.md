@@ -374,7 +374,9 @@ After the dry-run round above, the user explicitly and repeatedly decided
 Code Workflow Preferences" umbrella — not just the already-migrated 🔄
 Development Workflow subsection, but all 18 subsections (Plan Mode, Git
 Worktrees, Parallel Agents, Brainstorm-First, Stop-and-Ask, Context7,
-Language/Stack Defaults, TDD, Commit Cadence, Before-Claiming-Complete,
+Language/Stack Defaults (values corrected 2026-09-30 from TypeScript/Jest to C#/.NET + TUnit and
+React/TypeScript + Jest to match the current global CLAUDE.md; the copy stays
+in the skill by design and needs re-checking when CLAUDE.md changes), TDD, Commit Cadence, Before-Claiming-Complete,
 Finishing, Before-Push, Docs-as-Code Baseline, and Auditing Generated
 Instructional Documents) — and to have `SKILL.md` absorb everything
 pipeline-relevant so the skill reads as a fully independent, self-contained
@@ -512,16 +514,30 @@ because validation runs after `ExitPlanMode`.
   then reset to the shipped default: a pin buys a slightly newer model today
   but loses the plugin's automatic bumps, so QA now follows the plugin's Opus
   pin.
+  **Superseded 2026-09-30 (Ouroboros 0.55.3).** QA is now a standard-tier
+  role: with no config it resolves to the `sonnet` alias, and the
+  `evaluation.semantic_model` fallback is gone. Decision: keep QA on Opus.
+  `~/.ouroboros/config.yaml` (did not exist before) now sets `models.pin:
+  true` and `llm.qa_model: opus`. Verified with the resolver in a throwaway
+  `HOME` and then the real one: `qa` resolves to opus (source `pin`) and
+  every other role is unchanged. Rejected: `models.default` / `OUROBOROS_MODEL`
+  (applies to every role, including the Haiku and Sonnet ones), and env vars
+  in `settings.json` (unclear they reach the MCP server process). Trade-off:
+  `opus` is an alias, so QA still follows the Claude CLI's newest Opus
+  without further config, but `models.pin` is now on globally.
 - **`/fast`.** Forces Opus unless `disableFastMode` applies (untested at
   runtime), so it must be off in Phase 3 for the Sonnet-implementation goal
   to hold. It is an interactive user command the agent can neither run nor
   inspect, so Phase 3 makes it a stop-and-ask item.
-- **`llm.qa_model` must stay absent from `~/.ouroboros/config.yaml`.**
+- **(Superseded, see above) `llm.qa_model` must stay absent from `~/.ouroboros/config.yaml`.**
   `ouroboros setup` wrote the literal `claude-sonnet-4-6`; the loader counts a
   value as unset only while it equals the current shipped default, so the
   literal becomes an override after the next upstream Sonnet bump. Deleted
   2026-09-29. Re-check after running `ouroboros setup` or any config tool,
-  since either may write it back.
+  since either may write it back. (Superseded 2026-09-30: under 0.55.3
+  `llm.qa_model: opus` is set on purpose, see above. The concern here was a
+  stale Sonnet id; `opus` is an alias, so it doesn't go stale. Phase 4 now
+  checks the file still holds both settings.)
 - **Haiku fan-out lanes** (see the fan-out model assignment rule) are an
   intentional exception to "discovery on Opus."
 
@@ -553,7 +569,7 @@ documentation task), and the security-review timing "before invoking
   `session_context` call has neither and returns `gap_questions_required`; it
   takes structured keys, with each request sentence copied verbatim into the
   matching key. When `OUROBOROS_REQUIRE_CLIENT_GATES` is 1, true, yes, or on, client
-  gates fail the `session_id` call in 0.54.5, so the variable stays unset;
+  gates fail the `session_id` call in 0.54.5 (re-verified in 0.55.3), so the variable stays unset;
   otherwise the call only shows a warning. The `session_id` call can also
   refuse when the interview needs to reopen.
 - **Seed versioning.** `seed_hash` (SHA-256 of `seed.yaml`) replaced
@@ -647,3 +663,80 @@ documentation task), and the security-review timing "before invoking
    against the pre-expansion `SKILL.md`; not yet re-run against the
    expanded version). The 2026-09-29 dry runs exercised a public-release
    candidate derived from this file, not this file itself.
+
+## `references/` split (2026-09-30)
+
+`SKILL.md` was 629 lines and loaded in full on every invocation. Edge-case and
+tool-quirk detail moved verbatim into `references/` (seed generation refusals
+and client gates, Seed QA and the refinement pass, the doc-baseline step,
+Phase 3 execution and SDD details, Phase 4's model policy and `ouroboros_qa`
+call). Each moved block left a pointer in `SKILL.md` that keeps the hard rule
+(advisory QA, never hand-edit the Seed, `force` only with consent, one
+implementer at a time) and says when to read the file. State tracking,
+artifact storage, Seed versioning, and the phase gates stayed in `SKILL.md`:
+they run on every pass, so a pointer there would only add a read. Three
+Error-handling bullets (entry reliability, trivial requests, `ooo auto`)
+were dropped as restatements of "When this applies" and Phase 0; the entry
+reliability rationale is the trade-off already recorded in this document's
+Error handling section. Rejected: splitting by phase, which would have made
+every phase a two-file read. Risk: an agent skips a reference it should have
+read. The nine evals log which references were read, and when.
+
+## Phase 4 code review uses `pr-review-toolkit:review-pr` (2026-09-30)
+
+Phase 4 said "a code-review skill or agent, if available", so the tool an
+agent picked varied; the eval baseline chose the bare `code-reviewer` agent.
+It now names `pr-review-toolkit:review-pr`, which fans out to the specialist
+agents (code, tests, errors, types, comments) and groups findings as Critical,
+Important, and Suggestions. Two defaults of that command are wrong for this
+pipeline and are overridden in `SKILL.md`: it reviews the working tree, which
+is empty after Phase 3's per-step commits, so the scope is passed as
+`git diff <base>...HEAD`; and "all" ends with `code-simplifier`, which edits
+code after the tests and `ouroboros_qa` ran, so the aspects are listed and
+`simplify` is left out. Rejected: the `code-review` skill, which has no
+per-aspect control. Phase 2's design-text security review was briefly moved to `review-pr`
+too. Superseded the same day by the dedicated reviewer below: `review-pr`
+is built for diffs and its `code` aspect checks guidelines and bugs, not
+design security. Risk:
+the agent model can't be set through the command, so `model: opus` is passed
+as an instruction to the command and is best effort.
+
+## Dedicated reviewer subagent for Phase 2 and Phase 4 (2026-09-30)
+
+Both reviews now run in a separate subagent instead of the controller's own
+session, briefed from `references/reviewer-brief.md`. Mode A reviews
+`design.md` for security at the Phase 2 gate; mode B runs
+`pr-review-toolkit:review-pr` on the branch diff at Phase 4. A fresh agent on
+`model: opus` shares none of the implementer's context, so it can't grade its
+own work, and it also gives `review-pr`'s agent model a real place to be
+set, since the command has no model parameter.
+
+The human asked for "a separate agent that performs review-pr and
+security-guidance". Two parts of that needed correcting. `security-guidance`
+is a hook plugin (pattern warnings on `Edit`/`Write`, an LLM diff review when
+a turn ends, an agentic reviewer on `git commit`). It has no skill or agent to
+invoke and it reviews code, not designs, so it can't be the Phase 2 reviewer.
+Mode A is a security brief written for designs (authz and IDOR, injection and
+path traversal, SSRF, secrets, data exposure, transport), and `SKILL.md` says
+the plugin keeps running through its hooks during Phase 3 and Phase 4, with its
+findings treated like Critical ones. Second, one agent doing both jobs is one
+brief with two modes, dispatched fresh each time, not a long-lived agent.
+
+Verified before building: a dispatched general-purpose agent can invoke
+`review-pr` and spawn the reviewer agent it names (probe on the fixture branch,
+no errors, real findings returned).
+
+Rejected: an installed agent definition in `~/.claude/agents/` (breaks the
+self-contained rule from the 2026-09-28 decision, needs a registration step,
+and drifts, the same objection that ruled out wrapper agents in the model
+policy); a reviewer that runs `review-pr` on the design (diff-oriented, no
+security aspect); and leaving the review in the controller (the implementer
+reviewing itself).
+
+Risks: the brief is a prompt, so its security checklist is only as good as the
+categories listed, and it can miss design flaws outside them. A dispatched
+reviewer that fails to spawn leaves Phase 2 falling back to the controller
+reviewing itself, which `SKILL.md` requires it to say out loud. Evals 10 and 11
+cover the two dispatches; eval 11's fixture has planted flaws (an IDOR against
+the Seed's "only their own exports", error-message leakage, and an S3 key built
+from caller input).
