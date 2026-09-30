@@ -1,6 +1,6 @@
 # Design: `development-workflow` skill
 
-Status: draft, pending user review
+Status: in use; later changes are recorded in the 2026-09-29 backport section
 Date: 2026-09-28
 Author: Claude (brainstorming session with Mike Dulog)
 
@@ -485,10 +485,154 @@ one it never checked for:
   others. "Exactly the rules that needed to stay universal" above is
   corrected by this addition — the fourth pass's list wasn't exhaustive.
 
-This fourth-pass audit's fixes have not yet been independently re-verified
-by a fifth pass — the fixes were applied directly based on the audit's
-findings, following the same fix pattern already validated three times
-prior in this project.
+This fourth-pass audit's fixes were not independently re-verified at the
+time. Later audits, described in the 2026-09-29 backport section, covered
+them.
+
+## Model policy (added 2026-09-29)
+
+Intent: discovery, specs, plans and validation on Opus; implementation on
+Sonnet. Phases 1–2 already satisfied this through `opusplan` (Opus while
+permission mode is `plan`, Sonnet after `ExitPlanMode`). Phase 4 did not,
+because validation runs after `ExitPlanMode`.
+
+- **Review agents.** `silent-failure-hunter`, `type-design-analyzer`,
+  `pr-test-analyzer` and `comment-analyzer` default to `model: inherit`
+  (Sonnet outside plan mode), so `CLAUDE.md` now says to dispatch all four
+  with `model: opus`. `comment-analyzer` was briefly exempted as a mechanical,
+  non-blocking check; the exemption was dropped in favor of a rule with no
+  special cases. Rejected:
+  wrapper agents that copy the plugin agents with a pinned model, since they
+  drift from upstream and a plugin update would not carry the pin.
+- **`ouroboros_qa`.** It has no model parameter and ignores the session
+  model. It resolves `OUROBOROS_QA_MODEL`, then `llm.qa_model` (only when
+  non-default), then `evaluation.semantic_model` (plugin Opus pin). An
+  earlier draft of this change assumed QA ran on Sonnet; that was wrong, QA
+  was already on Opus. `llm.qa_model` was briefly pinned to a full Opus ID,
+  then reset to the shipped default: a pin buys a slightly newer model today
+  but loses the plugin's automatic bumps, so QA now follows the plugin's Opus
+  pin.
+- **`/fast`.** Forces Opus unless `disableFastMode` applies (untested at
+  runtime), so it must be off in Phase 3 for the Sonnet-implementation goal
+  to hold. It is an interactive user command the agent can neither run nor
+  inspect, so Phase 3 makes it a stop-and-ask item.
+- **`llm.qa_model` must stay absent from `~/.ouroboros/config.yaml`.**
+  `ouroboros setup` wrote the literal `claude-sonnet-4-6`; the loader counts a
+  value as unset only while it equals the current shipped default, so the
+  literal becomes an override after the next upstream Sonnet bump. Deleted
+  2026-09-29. Re-check after running `ouroboros setup` or any config tool,
+  since either may write it back.
+- **Haiku fan-out lanes** (see the fan-out model assignment rule) are an
+  intentional exception to "discovery on Opus."
+
+## Fixes backported from two dry runs (2026-09-29)
+
+A public-release candidate was audited three times and dry-run twice against a
+scratch repo. The first dry run took about 72 minutes, mostly because a broken
+`python3` alias stalled tool calls; the second took about 13 minutes and ran
+every phase. The correctness fixes were backported here. The public-only
+changes (Requirements section, Phase 0 dependency check, generalized model
+notes, removal of the `docs-as-code-baseline` and `spec-auditor` references,
+the "author's defaults" label, conditional Context7) were not. Where an earlier
+section of this file conflicts with this one, this section and `SKILL.md` win.
+Pre-backport copies of both files are kept in
+`~/.claude/dev-workflow-backups/2026-09-29/`.
+
+Earlier text superseded by this section: the Phase 5 order (now doc-sync,
+verification, then finishing), the always-run QA-revise rule, `revision_key`
+versioning, `security-review` run against the design, the fan-out lane list,
+`TodoWrite` as the mandatory and only resume pointer, SDD fan-out in parallel,
+the "diff/output" QA artifact, the old repo-slug rule, the State tracking rule
+that resumed from the todo list alone, the "docs untouched until Phase 4
+validates success" rule (now with an exception for plans that include a
+documentation task), and the security-review timing "before invoking
+`writing-plans`" (now before the design or plan is presented).
+
+- **Seed generation.** The two paths differ. The `session_id` call after an
+  interview enforces the 0.2 ambiguity threshold and `force`. The direct
+  `session_context` call has neither and returns `gap_questions_required`; it
+  takes structured keys, with each request sentence copied verbatim into the
+  matching key. When `OUROBOROS_REQUIRE_CLIENT_GATES` is 1, true, yes, or on, client
+  gates fail the `session_id` call in 0.54.5, so the variable stays unset;
+  otherwise the call only shows a warning. The `session_id` call can also
+  refuse when the interview needs to reopen.
+- **Seed versioning.** `seed_hash` (SHA-256 of `seed.yaml`) replaced
+  `revision_key`, which only Ouroboros's `seed` skill writes, and only during
+  an opted-in refinement pass. `state.json` gained `status`
+  (`in_progress`/`complete`/`abandoned`), `steps_completed`, and defined write
+  points, so a new session can resume from the run directory.
+- **Seed QA.** The old "always run the refinement pass" rule contradicted
+  Ouroboros's own opt-in rule. The Seed is now graded advisorily at the
+  Phase 1→2 transition, the refinement pass is offered and never run
+  unasked, and QA differences carry into brainstorming as open questions.
+- **Plan mode.** Phases 1–2 write only to the run directory (plus the
+  refinement pass's revision note). A refused write is kept in chat and saved
+  after `ExitPlanMode`. The real-library spike moved to Phase 3, after
+  isolation and the `/fast` check and before implementation. A Spike ends the
+  run and exits plan mode.
+- **Phase 3.** SDD forbids parallel implementers, so parallel work is opt-in,
+  needs disjoint per-task `Files:` blocks, and is committed by the controller.
+  Bounded changes have no plan file, so they run inline with TDD. SDD runs
+  through its Finish section, and only its handoff to
+  `finishing-a-development-branch` is skipped. Implementer briefs carry the
+  commit rules, including a blank line before any trailer and the exact
+  trailer text; the controller checks `git log -1 --format=%B`.
+- **Phase 4.** `ouroboros_qa` needs the complete unelided diff plus real test
+  and CLI output, and its `quality_bar` says documentation criteria are out of
+  scope, because Phase 5's doc-sync check owns them (and `seed_content` still contains
+  the README criterion). The bar also includes criteria that `design.md`
+  resolved from the Seed QA differences. A REVISE whose only differences are
+  Phase 5 items goes to the human as an accept-or-repair choice. Repairs are
+  targeted, never a re-run of SDD, and always get code review.
+- **Phase 5.** Doc-sync, then verification, then finishing, so nothing pushes
+  before the docs are checked.
+- **Also changed.**
+  - Model notes: reviewers dispatched inside SDD choose their own model under
+    SDD's guidance, and `ouroboros_qa` ignores the session model "in Claude
+    Code", including the Seed QA call in Phase 1.
+  - Phase 3 asks the human to confirm `/fast` is off (a gate this skill
+    introduces), runs the real-library spike if Phase 2 named one (after
+    isolation, before implementation), and stops to ask before
+    `using-git-worktrees` commits a `.gitignore` change in the main tree. `EnterWorktree` binds to the session directory, so a target repo
+    elsewhere uses `git worktree add`, and the skill tells
+    `using-git-worktrees` which mechanism to use.
+  - The security review now goes to a subagent that reads the design text,
+    because the built-in `security-review` skill reviews branch changes.
+  - Fan-out lanes: `gap-hunting` and the lateral personas were removed (they
+    aren't interview lanes), and lanes not named use the session model.
+  - Run slugs are `owner-repo` with `-2`, `-3` suffixes for same-day
+    collisions, and state paths are forward-slash, never 8.3 short names.
+    Runs saved under the old folder-name slug won't be found by resume.
+  - Phase 4 treats a Minor the reviewer recommends fixing as unresolved, and
+    runs code review on any repair diff. Phase 5 asks for confirmation before
+    a local merge into the default branch, records `doc_criteria_met`, and
+    stops to ask if a documentation criterion can't be met.
+    `doc_baseline_skipped` lets the baseline backstop respect a deliberate
+    Phase 2 skip.
+  - Resume re-enters plan mode when it restarts at Phase 1 or 2, because plan
+    mode doesn't carry across sessions. This replaced the "or before invoking
+    brainstorming" clause in the Phase 1 trigger.
+  - The spike path asks the human to approve the question and probe first,
+    matching brainstorming's own gate.
+  - The SDD workspace is `.superpowers/sdd/plan/`, or
+    `plan-<run-dir-name>/` when another run holds that name; use the path the
+    script prints.
+  - Deliberately dropped: the qualifier "skip both steps only for plans
+    bounded enough that Phase 0 wouldn't have triggered", because such plans
+    never reach Phase 2.
+- **Environment notes.** No todo tool existed in the dry-run sessions, so the
+  todo list is optional and `state.json` is the authoritative pointer. On this
+  machine a `python3` shim from the Python install manager hung for about 29
+  minutes and then failed; `python3.exe` was copied next to the real Python to
+  fix it.
+- **Not exercised.** The bounded path (no plan, inline TDD), the Spike path,
+  the opt-in parallel path, and the Seed refinement pass were never run. The
+  second dry run covered the architectural path only, with `EnterPlanMode`,
+  `ExitPlanMode` and every human gate simulated.
+- **Unverified here.** The "returns permission mode to `auto`" claim and the
+  `/fast` behavior are Claude Code harness claims that can't be checked from
+  plugin sources. The run durations above and the `python3` details are
+  observations from one machine.
 
 ## Deliverables
 
@@ -498,7 +642,8 @@ prior in this project.
    plus the 🧭 General Engineering Practices section added during the scope
    expansion
 3. Auditing-agent findings resolved for both files, across four independent
-   passes
+   passes, plus further passes during the 2026-09-29 backport
 4. RED+GREEN subagent dry-run results for the five scenarios above (run
    against the pre-expansion `SKILL.md`; not yet re-run against the
-   expanded version)
+   expanded version). The 2026-09-29 dry runs exercised a public-release
+   candidate derived from this file, not this file itself.

@@ -307,14 +307,19 @@ For the full Ouroboros → Superpowers engineering pipeline (classify → requir
 🤖 Code Review Plugin Invocations
 
 - **Before reviewing any PR (full review)**: invoke `code-review:code-review`
-- **After writing/modifying code (spot-check)**: invoke `pr-review-toolkit:code-reviewer`
+- **After writing or modifying a logical chunk of code**: run `pr-review-toolkit:code-simplifier` first, then `pr-review-toolkit:code-reviewer` on the simplified result, so the review covers the code that ships
+  - code-simplifier is a dedicated smell/simplification pass, narrower than code-reviewer's own duplication/naming checks. Unlike every other agent on this list, it **applies** edits directly instead of reporting findings for me to decide on
+  - This order deliberately reverses `/pr-review-toolkit:review-pr`, which runs code-simplifier after review. Keep this order there too
+  - Its built-in style rules (function over arrow functions, ES modules, explicit Props types) are not my standards. In any existing project, pass the project's conventions in the dispatch prompt; accept its defaults only on greenfield TypeScript/React where no convention exists yet
+  - Because it edits directly, review its diff afterward and revert changes that break project conventions
 - **When PR touches tests or adds features**: invoke `pr-review-toolkit:pr-test-analyzer`
 - **When new types are introduced**: invoke `pr-review-toolkit:type-design-analyzer`
 - **When error handling or catch blocks are modified**: invoke `pr-review-toolkit:silent-failure-hunter`
 - **After generating large doc comments**: invoke `pr-review-toolkit:comment-analyzer`
-- **After writing or modifying a logical chunk of code**: invoke `pr-review-toolkit:code-simplifier` alongside `pr-review-toolkit:code-reviewer` above for a dedicated smell/simplification pass — narrower than code-reviewer's own duplication/naming checks, and different in kind from every other agent on this list since it **applies** edits directly instead of reporting findings for me to decide on. Its JS/React defaults may not match an existing Angular/Vue frontend or non-Node backend — confirm which case applies before accepting its edits
 - **When receiving unclear or questionable review feedback**: invoke `superpowers:receiving-code-review`
-- Do **not** invoke a `superpowers`-namespaced code-review skill — no such skill currently exists; use the `pr-review-toolkit` variants above for all code review work
+- Do **not** invoke `superpowers:requesting-code-review` ad hoc — it partly duplicates the guideline review the agents above already do; use the agents listed above instead. Exception: `superpowers:subagent-driven-development` and `superpowers:executing-plans` may use it for their final whole-branch review. Known gap: it is the only reviewer that checks a commit range against a plan or requirements, so there is no plan-conformance review outside those workflows
+- Prefer the plugin agents above over the built-in `code-review` and `simplify` skills unless I name the built-in one explicitly
+- **Model policy**: in the main session, discovery, specs, plans and validation run on Opus and implementation runs on Sonnet; mechanical fan-out lanes may use Haiku per the `development-workflow` fan-out rule. Dispatch `pr-review-toolkit:silent-failure-hunter`, `type-design-analyzer`, `pr-test-analyzer` and `comment-analyzer` with `model: opus` — their plugin default is `inherit`, which resolves to Sonnet outside plan mode unless `/fast` is on
 
 ---
 
