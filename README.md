@@ -238,9 +238,9 @@ The skill is a single `SKILL.md` that acts as a resumable state machine. It stop
 |---|---|
 | 0. Classify | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). Out-of-scope work, such as a typo fix, is done directly with no run. |
 | 1. Requirements → Seed | Interviews you if goal, constraints, and success criteria aren't all stated, then generates a Seed spec. Runs in plan mode. |
-| 2. Design review & plan | Brainstorms a design against the Seed and writes an implementation plan. |
-| 3. Isolate & execute | Sets up an isolated workspace and implements the plan with TDD. |
-| 4. Evaluate | Reviews the result with the code-review agents and `ouroboros_qa`. |
+| 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. |
+| 3. Isolate & execute | Creates a git worktree for the branch (skipped outside a git repo), then implements with TDD. Architectural plans run through `superpowers:subagent-driven-development`, and bounded changes run inline. |
+| 4. Evaluate | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and runs code review when a review skill or agent is installed. A REVISE or FAIL verdict is reported to you, never auto-retried. |
 | 5. Finish & push | Checks docs are in sync, verifies, then finishes the branch. |
 
 ## Requirements
