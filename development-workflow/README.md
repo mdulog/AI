@@ -16,6 +16,7 @@ Phase 0  Classify & preflight   Sonnet
    ▼
 Phase 1  Requirements → Seed    Opus (plan mode)
    │     interview if goal/constraints/criteria are unclear → generate Seed → advisory Seed QA
+   │     → HUMAN APPROVAL of the Seed
    ▼
 Phase 2  Design review & plan   Opus (plan mode)
    │     brainstorming → bounded | architectural (+ writing-plans) | spike
@@ -26,6 +27,7 @@ Phase 3  Isolate & execute      Sonnet
    ▼
 Phase 4  Evaluate               Opus verifiers
    │     real test command + ouroboros_qa on the diff + pr-review-toolkit code review
+   │     (code review is skipped when subagent-driven-development's final review was clean)
    ▼
 Phase 5  Finish & push
          doc-sync check → verification-before-completion → finishing-a-development-branch
@@ -33,11 +35,11 @@ Phase 5  Finish & push
 
 | Phase | What happens | Human gate |
 |---|---|---|
-| 0 | Classifies the request (multi-file change, ambiguous requirements, or infrastructure work is in scope). Checks that `opusplan` is in effect and that `ouroboros_interview`, `ouroboros_generate_seed` and `ouroboros_qa` load. Creates nothing until all checks pass. Out-of-scope work, such as a typo fix, is done directly with no run. | Confirm the model setting if the config files can't settle it |
-| 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. | Interview completion; opt-in Seed refinement |
+| 0 | Classifies the request (multi-file change, ambiguous requirements, or infrastructure work is in scope). Checks that `opusplan` is in effect and that `ouroboros_interview`, `ouroboros_generate_seed` and `ouroboros_qa` load. Creates nothing until all checks pass. Out-of-scope work, such as a typo fix, gets your call: the skill explains how it classified the request and offers to run the pipeline anyway, or makes the change directly. Nothing is created unless you opt in. | Confirm the model setting if the config files can't settle it; opt in to running out-of-scope work |
+| 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. Then shows you the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) and waits for your approval before Phase 2. Asking for changes regenerates the Seed; the skill never hand-edits it. | Interview completion; opt-in Seed refinement; Seed approval |
 | 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. | Design approval (bounded) or spec approval, then plan approval (architectural) |
 | 3 | Creates a worktree (skipped outside a git repo) and implements with TDD. Multi-task plans run through `superpowers:subagent-driven-development`, one implementer at a time. Bounded changes run inline. | Confirm `/fast` is off; stop-and-ask triggers |
-| 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`. All three must pass. | A REVISE or FAIL verdict is reported to you, never auto-retried |
+| 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean. Every check that ran must pass. | A REVISE or FAIL verdict is reported to you, never auto-retried |
 | 5 | Syncs `README.md` and `docs/` to the branch diff, re-verifies, then finishes the branch. | PR creation and push stay manual |
 
 ### The three paths in Phase 2
@@ -59,7 +61,7 @@ A non-pass `ouroboros_qa` verdict is classified before anything is repaired:
 
 ## Key mechanisms
 
-**Seed versioning.** The Seed is the single source of truth. Its identity is `seed_hash`, the SHA-256 of the exact bytes of `seed.yaml`. Each `design.md` and `plan.md` records the hash it was built against. Any byte change to the Seed invalidates both, and the run returns to Phase 2. A stale spec or plan never carries forward.
+**Seed versioning.** The Seed is the single source of truth. Its identity is `seed_hash`, the SHA-256 of the exact bytes of `seed.yaml`. `state.json` records the hash each `design.md` and `plan.md` was built against, plus `seed_approved_hash`, the hash of the Seed you approved. Any byte change to the Seed invalidates the design and plan, and the run returns to Phase 2. A `seed.yaml` that no longer matches `seed_approved_hash` is treated as a Seed revision and regenerated through Phase 1, never approved as edited. A stale spec or plan never carries forward.
 
 **Model split.** A skill can't switch the session's model, so two mechanisms do the work. First, `opusplan` routing runs the session on Opus in plan mode (Phases 1–2) and on Sonnet after `ExitPlanMode`. Second, every dispatched subagent gets an explicit `model:`. Implementers and fixers get Sonnet. Reviewers, auditors and the Phase 4 and 5 test gates get Opus.
 
@@ -111,7 +113,8 @@ Working artifacts are never written into the target repo. Each run gets a direct
 ```
 ~/.claude/dev-workflow-runs/<repo-slug>/<YYYY-MM-DD>-<task-slug>/
   seed.yaml    the current Seed
-  state.json   phase, status (in_progress | complete | abandoned), steps_completed, worktree path, seed_hash pointers
+  state.json   phase, status (in_progress | complete | abandoned), path (bounded | architectural | spike),
+               steps_completed, seed_approved_hash, worktree path, and design/plan pointers {path, seed_hash}
   design.md    brainstorming's spec
   plan.md      writing-plans output (architectural path only)
   spike/       throwaway build, spike path only
@@ -127,13 +130,13 @@ Working artifacts are never written into the target repo. Each run gets a direct
 development-workflow/
   SKILL.md      The skill definition and source of truth for phase order, gates and state tracking
   references/   Detail loaded on demand from named phases
-  evals/        evals.json (22 authored prompts with expectations) and files/build-fixtures.sh
+  evals/        evals.json (26 authored prompts with expectations) and files/build-fixtures.sh
   DESIGN.md     Dated design decisions and audit history
 ```
 
 | Reference file | Loaded from |
 |---|---|
-| [`seed-generation-edge-cases.md`](references/seed-generation-edge-cases.md) | Phase 1, when Seed generation refuses or asks for more |
+| [`seed-generation-edge-cases.md`](references/seed-generation-edge-cases.md) | Phase 1, before calling `ouroboros_generate_seed` and again if it refuses |
 | [`seed-qa-refinement.md`](references/seed-qa-refinement.md) | Phase 1→2, Seed QA and the opt-in refinement pass |
 | [`reviewer-brief.md`](references/reviewer-brief.md) | Phase 2 design and security audits, Phase 4 code review |
 | [`doc-baseline.md`](references/doc-baseline.md) | Phase 2 plan check and the Phase 5 backstop |
@@ -144,13 +147,20 @@ development-workflow/
 
 ## Evals
 
-`evals/evals.json` holds 22 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
+`evals/evals.json` holds 26 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
 
 ```bash
 bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design]
 ```
 
-The script creates a small `billing-app` git repo plus an empty `dev-workflow-runs/` directory. The flags seed a resumable stale-design run, a bare greenfield repo, or a run parked at Phase 4 or at the Phase 2 design.
+The script creates a small `billing-app` git repo plus an empty `dev-workflow-runs/` directory, then the flag seeds one scenario:
+
+- `--with-resume`: a phase 2 run whose design is stale because the Seed was edited after the design was written. The Seed itself is approved.
+- `--empty`: builds `new-service` (only `.gitkeep`) instead of `billing-app`, for greenfield prompts.
+- `--at-phase4`: a bounded-path run on branch `dev-workflow/retry-backoff` with one commit and a `test` script. Its `state.json` worktree points at the main repo, so no real worktree exists.
+- `--at-phase2-design`: an architectural-path run whose drafted `design.md` is deliberately insecure (an IDOR on `exportId`, exception messages returned to callers), to exercise the security review.
+- `--seed-mismatch`: a phase 2 run whose `seed.yaml` was edited after approval, so it no longer matches `seed_approved_hash`.
+- `--legacy-seed`: a phase 2 run from before the Seed approval gate, with no `seed_approved` step.
 
 ## Editing this skill
 
