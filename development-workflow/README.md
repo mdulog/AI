@@ -12,7 +12,7 @@ The skill is opt-in. It runs only when you explicitly ask for the dev workflow o
 
 ```
 Phase 0  Classify & preflight   Sonnet
-   │     in scope? → model is opusplan? → Ouroboros tools load? → create run dir + todos
+   │     resumable run? → in scope? → model is opusplan? → Ouroboros tools load? → create run dir + todos
    ▼
 Phase 1  Requirements → Seed    Opus (plan mode)
    │     interview if goal/constraints/criteria are unclear → generate Seed → advisory Seed QA
@@ -29,18 +29,18 @@ Phase 4  Evaluate               Opus verifiers
    │     real test command + ouroboros_qa on the diff + pr-review-toolkit code review
    │     (code review is skipped when subagent-driven-development's final review was clean)
    ▼
-Phase 5  Finish & push
+Phase 5  Finish & push          Opus verification
          doc-sync check → verification-before-completion → finishing-a-development-branch
 ```
 
 | Phase | What happens | Human gate |
 |---|---|---|
-| 0 | Classifies the request (multi-file change, ambiguous requirements, or infrastructure work is in scope). Checks that `opusplan` is in effect and that `ouroboros_interview`, `ouroboros_generate_seed` and `ouroboros_qa` load. Creates nothing until all checks pass. Out-of-scope work, such as a typo fix, gets your call: the skill explains how it classified the request and offers to run the pipeline anyway, or makes the change directly. Nothing is created unless you opt in. | Confirm the model setting if the config files can't settle it; opt in to running out-of-scope work |
+| 0 | Classifies the request (multi-file change, ambiguous requirements, or infrastructure work is in scope). Checks that `opusplan` is in effect and that `ouroboros_interview`, `ouroboros_generate_seed` and `ouroboros_qa` load. A resume at Phase 2 or later needs only `ouroboros_qa`. Creates nothing until all checks pass. Out-of-scope work, such as a typo fix, gets your call: the skill explains how it classified the request and offers to run the pipeline anyway, or makes the change directly. Nothing is created unless you opt in. | Confirm the model setting if the config files can't settle it; opt in to running out-of-scope work |
 | 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. Then shows you the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) and waits for your approval before Phase 2. Asking for changes regenerates the Seed; the skill never hand-edits it. | Interview completion; opt-in Seed refinement; Seed approval |
-| 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. | Design approval (bounded) or spec approval, then plan approval (architectural) |
+| 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. | Design approval (bounded), spec approval then plan approval (architectural), or approval of the question and probe (spike, plus permission to leave plan mode if the answer needs a throwaway build). A Seed gap the audit finds goes to you and blocks presenting |
 | 3 | Creates a worktree (skipped outside a git repo) and implements with TDD. Multi-task plans run through `superpowers:subagent-driven-development`, one implementer at a time. Bounded changes run inline. | Confirm `/fast` is off; stop-and-ask triggers |
 | 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean. Every check that ran must pass. | A REVISE or FAIL verdict is reported to you, never auto-retried |
-| 5 | Syncs `README.md` and `docs/` to the branch diff, re-verifies, then finishes the branch. | PR creation and push stay manual |
+| 5 | Establishes a doc baseline first if the repo has none (unless Phase 2 skipped it), syncs `README.md` and `docs/` to the branch diff, re-verifies in an Opus subagent, then finishes the branch. | PR creation and push stay manual |
 
 ### The three paths in Phase 2
 
@@ -57,17 +57,19 @@ A non-pass `ouroboros_qa` verdict is classified before anything is repaired:
 - **Implementation wrong, Seed still valid:** targeted repair in Phase 3 (one fix subagent or an inline TDD cycle), then Phase 4 again, including a review of the repair diff.
 - **Seed wrong:** regenerate the Seed in Phase 1 and return to Phase 2 for fresh approval.
 
+Three more rules apply. You may accept a REVISE verdict and proceed; the skill never accepts one for you. A difference that only names something Phase 5 owns, such as a missing README, is expected and isn't a reason to repair. A blocking code-review finding is always an implementation problem: it goes back to Phase 3 and never revises the Seed.
+
 ---
 
 ## Key mechanisms
 
 **Seed versioning.** The Seed is the single source of truth. Its identity is `seed_hash`, the SHA-256 of the exact bytes of `seed.yaml`. `state.json` records the hash each `design.md` and `plan.md` was built against, plus `seed_approved_hash`, the hash of the Seed you approved. Any byte change to the Seed invalidates the design and plan, and the run returns to Phase 2. A `seed.yaml` that no longer matches `seed_approved_hash` is treated as a Seed revision and regenerated through Phase 1, never approved as edited. A stale spec or plan never carries forward.
 
-**Model split.** A skill can't switch the session's model, so two mechanisms do the work. First, `opusplan` routing runs the session on Opus in plan mode (Phases 1–2) and on Sonnet after `ExitPlanMode`. Second, every dispatched subagent gets an explicit `model:`. Implementers and fixers get Sonnet. Reviewers, auditors and the Phase 4 and 5 test gates get Opus.
+**Model split.** A skill can't switch the session's model, so two mechanisms do the work. First, `opusplan` routing runs the session on Opus in plan mode (Phases 1–2) and on Sonnet after `ExitPlanMode`. Second, every dispatched subagent gets an explicit `model:`. Implementers and fixers get Sonnet, or Opus for a single task when you allow it. Reviewers, auditors and the Phase 4 and 5 test gates get Opus. The interview fan-out lanes follow their own rule: mechanical lanes run on Haiku, and any lane the skill doesn't name uses the session model.
 
 **Resumability.** `state.json` is the authoritative phase pointer. A `[dev-workflow]`-prefixed todo list mirrors it, and `state.json` wins if they disagree. A new session finds unfinished runs under `~/.claude/dev-workflow-runs/<repo-slug>/` and offers to resume at the recorded phase.
 
-**Commit cadence.** Phase 3 commits after every completed step, but only when the build is green. It stages explicit paths, never commits onto `main`/`master`, and never pushes.
+**Commit cadence.** Phase 3 commits after every completed step, but only when the build is green and that step's own tests pass. It stages explicit paths, never commits onto `main`/`master`, and never pushes.
 
 **Doc-sync before push.** Phase 5 updates the README and `docs/` the diff invalidates before any `git push`, and checks the Seed's documentation criteria, which Phase 4 deliberately leaves out.
 
@@ -81,7 +83,7 @@ A non-pass `ouroboros_qa` verdict is classified before anything is repaired:
 - `~/.ouroboros/config.yaml` with `models.pin: true` and `llm.qa_model: opus`, so `ouroboros_qa` runs on Opus. Without it QA runs on Sonnet, and the skill tells you before the Seed check.
 - `/fast` off during Phase 3. It forces Opus and breaks the `opusplan` routing.
 
-Context7 is used for library lookups in Phases 2 and 3, and is optional for the pipeline itself.
+Context7 is used for library lookups in Phases 2 and 3. Phase 0 doesn't check for it, but the skill expects it and tells the model not to rely on trained knowledge alone.
 
 ---
 
@@ -94,7 +96,7 @@ mkdir -p ~/.claude/skills/development-workflow
 cp -r development-workflow/SKILL.md development-workflow/references ~/.claude/skills/development-workflow/
 ```
 
-`SKILL.md` loads files from `references/` at the phase that needs them, so copy the directory with it. The installed copy is a plain copy. After editing the repo, run the same command again. `README.md`, `DESIGN.md` and `evals/` stay in the repo.
+`SKILL.md` loads files from `references/` at the phase that needs them, so copy the directory with it. The installed copy is a plain copy. After editing the repo, run the same command again. The install command doesn't copy `README.md`, `DESIGN.md` or `evals/`; they stay in the repo.
 
 ## Usage
 
@@ -128,6 +130,7 @@ Working artifacts are never written into the target repo. Each run gets a direct
 
 ```
 development-workflow/
+  README.md     This file
   SKILL.md      The skill definition and source of truth for phase order, gates and state tracking
   references/   Detail loaded on demand from named phases
   evals/        evals.json (26 authored prompts with expectations) and files/build-fixtures.sh
@@ -143,14 +146,14 @@ development-workflow/
 | [`phase3-execution.md`](references/phase3-execution.md) | Phase 3, worktree mechanics and implementer briefs |
 | [`phase4-qa.md`](references/phase4-qa.md) | Phase 4, the `ouroboros_qa` call and model policy |
 | [`run-lifecycle.md`](references/run-lifecycle.md) | Phase 0 run creation and Seed hashing |
-| [`engineering-defaults.md`](references/engineering-defaults.md) | Context7 lookups and greenfield stack defaults |
+| [`engineering-defaults.md`](references/engineering-defaults.md) | Phase 1 stack questions, and the Phase 2-3 Context7 lookups |
 
 ## Evals
 
 `evals/evals.json` holds 26 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
 
 ```bash
-bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design]
+bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed]
 ```
 
 The script creates a small `billing-app` git repo plus an empty `dev-workflow-runs/` directory, then the flag seeds one scenario:
