@@ -134,12 +134,11 @@ the Seed, the design and the plan say about each other and about the repo:
    unfamiliar library's runtime behavior, the real-library spike is the first
    task.
 5. **Design principles and security controls.** Check the design, and the plan
-   when it exists, against SOLID and, if the human's own instructions include a
-   security checklist, against it for every new endpoint, service method and
-   data-access method: authorization on each, input validated at the boundary,
-   no secrets or personal data in logs, every new dependency justified and not
-   unmaintained. A
-   violation is Important, or Critical when it breaks one of the human's
+   when it exists, against SOLID, and check that every new dependency is justified.
+   If the human's own instructions include a security checklist, also check
+   it for every new endpoint, service method and data-access method:
+   authorization on each, input validated at the boundary, no secrets or
+   personal data in logs. A violation is Important, or Critical when it breaks one of the human's
    blocking criteria in a way a reviewer would block a merge on (a nit stays
    a Suggestion). When the controller says mode A runs at this gate,
    skip everything mode A's list covers (authentication, authorization, input

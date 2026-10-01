@@ -361,9 +361,11 @@ Run these in order.
 - `ouroboros_qa`'s returned verdict label (with `pass_threshold` defaulting to
   0.80) is the semantic/spec-compliance check; `verification-before-completion`'s gate is
   the mechanical one. All of these must pass: the test command,
-  `ouroboros_qa`, the dependency audit when it applies, and any code review
-  that ran. A dependency audit that can't run is reported as skipped and
-  counts only if the human explicitly accepts the skip. They cover different
+  `ouroboros_qa`, the dependency audit when it applies, and the code review.
+  A check that can't run (no audit tool for the ecosystem, or
+  `pr-review-toolkit` not installed) is reported as skipped and counts only if
+  the human explicitly accepts the skip. If they decline, resolve the blocker
+  and re-run the check, or stop. They cover different
   concerns, and none substitutes for another. The same tool is advisory at
   Phase 1 (grading the Seed) and a gate here (grading the implementation).
 - **Code review**: dispatch a separate reviewer subagent to run
@@ -386,15 +388,15 @@ Run these in order.
   - Critical issues are blocking. Important issues are unresolved until
     repaired or the human agrees to defer them. Suggestions are noted and
     don't gate.
-  If `pr-review-toolkit` isn't installed, say the step was skipped, since that
-  removes review coverage. A blocking finding is an implementation problem:
+  If `pr-review-toolkit` isn't installed, report the review as skipped, since
+  that removes review coverage; the gate rule above applies. A blocking finding is an implementation problem:
   repair it in Phase 3. It is never a reason to revise the Seed.
-- **Dependency audit**: if the diff adds or changes a dependency (a manifest
-  or lockfile), run the ecosystem's audit tool in the same `model: opus`
-  verification subagent as the test command. A known vulnerability in an added
-  or changed dependency is Critical. Read
-  `references/phase4-qa.md` for the commands and what to do when no audit tool
-  exists.
+- **Dependency audit**: if the branch diff touches a dependency manifest or
+  lockfile, run the ecosystem's audit tool in the same `model: opus`
+  verification subagent as the test command. A known vulnerability in a
+  dependency the diff adds or changes is Critical. Read
+  `references/phase4-qa.md` for the commands, how to tell a new vulnerability
+  from a pre-existing one, and what to do when no audit tool exists.
 - Soft gate: a non-pass QA verdict (REVISE or FAIL) is reported as a new visible step,
   never auto-retried (Ralph is out of scope, and `ouroboros_qa` has no
   `auto_evolve` parameter to chain into it regardless). Repeated verdicts just
@@ -414,8 +416,8 @@ Run these in order.
     `model: sonnet`) or an inline TDD cycle scoped to the finding. Don't re-invoke
     `subagent-driven-development` on the whole plan; it deletes its ledger at
     finish and would redispatch every task. Re-run Phase 4 on the result,
-    including the dependency audit if the repair touched a dependency, and
-    code review of the repair diff.
+    including the dependency audit if the branch diff still touches a manifest
+    or lockfile, and code review of the repair diff.
   - Seed wrong → this is a Seed revision. Apply the Seed-versioning invalidation
     rule: regenerate the Seed through Phase 1, then return to Phase 2, not
     Phase 3.
