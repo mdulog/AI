@@ -968,8 +968,8 @@ Phase 1 now ends with a human gate on the Seed, on both the interview and the
 direct path. Before this change nothing asked the human to approve the Seed,
 although `SKILL.md` calls it the single source of truth and every design and
 plan is hashed against it. The direct path was the weak spot: the Seed is built
-from the human's own sentences and never shown back, so a defect surfaced only
-at Phase 4 QA and cost a rerun of Phases 2-4.
+from the human's own sentences and never shown back, so a defect surfaced at the Phase 2 audit at best
+and at Phase 4 QA at worst, and cost a rerun of Phases 2-4.
 
 Decisions:
 
@@ -1003,6 +1003,14 @@ defect); showing the gate only on the direct path (the interview path can still
 produce a Seed the human did not intend).
 
 Limits: the gate is prose in `SKILL.md`, and a model can skip prose. The hash
-check at Phase 3 start is the backstop. A script that refuses Phase 3 without a
-matching `seed_approved_hash` would be stronger and is not built. The new evals
-(23-26) were checked by hand against the fixtures, not run.
+check at Phase 3 start is the backstop: a run still at Phase 2 with an absent or
+mismatched `seed_approved_hash` stops there (the gate for an absent hash,
+regeneration for a mismatch). A script that refuses Phase 3 without a matching
+`seed_approved_hash` would be stronger and is not built. The new evals (23-27)
+were checked by hand against the fixtures, not run, and evals 3, 5, 7, 8, 17,
+18, 20 and 21 were edited to expect the gate or an approved Seed.
+
+A final audit found that an absent `seed_approved_hash` was undefined: the
+mismatch, legacy and grandfather rules each read it differently. All three are
+now keyed on the hash (equal is approved, different is a revision, absent is a
+pre-gate run), and eval 27 covers the grandfathered Phase 3 case.

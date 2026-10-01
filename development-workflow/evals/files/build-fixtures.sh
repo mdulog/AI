@@ -3,7 +3,7 @@
 # --at-phase4 seeds a bounded-path run at Phase 4: one commit on a feature branch on top of main, all committed.
 # --seed-mismatch seeds a phase 2 run whose seed.yaml was edited after the human approved it (seed_approved_hash no longer matches).
 # --legacy-seed seeds a phase 2 run created before the Seed approval gate existed (no seed_approved step, no seed_approved_hash).
-# Every other seeded run records seed_approved and a matching seed_approved_hash.
+# Every other seeded run records seed_approved and a matching seed_approved_hash (one seed_approved entry even where a real run would hold two; approval is judged by the hash).
 # --empty builds a bare greenfield repo (only .gitkeep) instead of the billing-app files.
 # Builds a sandbox: <dest>/billing-app (tiny git repo, no remote) and an empty
 # <dest>/dev-workflow-runs/. With --with-resume, also seeds one in_progress run

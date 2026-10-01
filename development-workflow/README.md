@@ -27,7 +27,8 @@ Phase 3  Isolate & execute      Sonnet
    ▼
 Phase 4  Evaluate               Opus verifiers
    │     real test command + ouroboros_qa on the diff + pr-review-toolkit code review
-   │     (code review is skipped when subagent-driven-development's final review was clean)
+   │     (code review is skipped when subagent-driven-development's final review was clean,
+   │      and always runs after a repair loop)
    ▼
 Phase 5  Finish & push          Opus verification
          doc-sync check → verification-before-completion → finishing-a-development-branch
@@ -36,10 +37,10 @@ Phase 5  Finish & push          Opus verification
 | Phase | What happens | Human gate |
 |---|---|---|
 | 0 | Classifies the request (multi-file change, ambiguous requirements, or infrastructure work is in scope). Checks that `opusplan` is in effect and that `ouroboros_interview`, `ouroboros_generate_seed` and `ouroboros_qa` load. A resume at Phase 2 or later needs only `ouroboros_qa`. Creates nothing until all checks pass. Out-of-scope work, such as a typo fix, gets your call: the skill explains how it classified the request and offers to run the pipeline anyway, or makes the change directly. Nothing is created unless you opt in. | Confirm the model setting if the config files can't settle it; opt in to running out-of-scope work |
-| 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. Then shows you the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) and waits for your approval before Phase 2. Asking for changes regenerates the Seed; the skill never hand-edits it. | Interview completion; opt-in Seed refinement; Seed approval |
+| 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. Then shows you the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) and waits for your approval before Phase 2. Asking for changes regenerates the Seed; the skill never hand-edits it. | Interview completion; opt-in Seed refinement; Seed approval (approve, request changes or abandon) |
 | 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. | Design approval (bounded), spec approval then plan approval (architectural), or approval of the question and probe (spike, plus permission to leave plan mode if the answer needs a throwaway build). A Seed gap the audit finds goes to you and blocks presenting |
 | 3 | Creates a worktree (skipped outside a git repo) and implements with TDD. Multi-task plans run through `superpowers:subagent-driven-development`, one implementer at a time. Bounded changes run inline. | Confirm `/fast` is off; stop-and-ask triggers |
-| 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean. Every check that ran must pass. | A REVISE or FAIL verdict is reported to you, never auto-retried |
+| 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean (a review always runs after a repair loop). Every check that ran must pass. | A REVISE or FAIL verdict is reported to you, never auto-retried |
 | 5 | Establishes a doc baseline first if the repo has none (unless Phase 2 skipped it), syncs `README.md` and `docs/` to the branch diff, re-verifies in an Opus subagent, then finishes the branch. | PR creation and push stay manual |
 
 ### The three paths in Phase 2
@@ -55,7 +56,7 @@ If brainstorming discovers hidden complexity, it upgrades a bounded task to arch
 A non-pass `ouroboros_qa` verdict is classified before anything is repaired:
 
 - **Implementation wrong, Seed still valid:** targeted repair in Phase 3 (one fix subagent or an inline TDD cycle), then Phase 4 again, including a review of the repair diff.
-- **Seed wrong:** regenerate the Seed in Phase 1 and return to Phase 2 for fresh approval.
+- **Seed wrong:** regenerate the Seed in Phase 1, get it approved at the Seed gate again, and return to Phase 2 for fresh design approval.
 
 Three more rules apply. You may accept a REVISE verdict and proceed; the skill never accepts one for you. A difference that only names something Phase 5 owns, such as a missing README, is expected and isn't a reason to repair. A blocking code-review finding is always an implementation problem: it goes back to Phase 3 and never revises the Seed.
 
@@ -63,7 +64,7 @@ Three more rules apply. You may accept a REVISE verdict and proceed; the skill n
 
 ## Key mechanisms
 
-**Seed versioning.** The Seed is the single source of truth. Its identity is `seed_hash`, the SHA-256 of the exact bytes of `seed.yaml`. `state.json` records the hash each `design.md` and `plan.md` was built against, plus `seed_approved_hash`, the hash of the Seed you approved. Any byte change to the Seed invalidates the design and plan, and the run returns to Phase 2. A `seed.yaml` that no longer matches `seed_approved_hash` is treated as a Seed revision and regenerated through Phase 1, never approved as edited. A stale spec or plan never carries forward.
+**Seed versioning.** The Seed is the single source of truth. Its identity is `seed_hash`, the SHA-256 of the exact bytes of `seed.yaml`. `state.json` records the hash each `design.md` and `plan.md` was built against, plus `seed_approved_hash`, the hash of the Seed you approved. Any byte change to the Seed invalidates the design and plan, and the run returns to Phase 2. A `seed.yaml` that no longer matches `seed_approved_hash` is treated as a Seed revision and regenerated through Phase 1, never approved as edited. A run with no `seed_approved_hash` predates the gate: at Phase 2 or earlier it gets the gate, and at Phase 3 or later it is grandfathered. A stale spec or plan never carries forward.
 
 **Model split.** A skill can't switch the session's model, so two mechanisms do the work. First, `opusplan` routing runs the session on Opus in plan mode (Phases 1–2) and on Sonnet after `ExitPlanMode`. Second, every dispatched subagent gets an explicit `model:`. Implementers and fixers get Sonnet, or Opus for a single task when you allow it. Reviewers, auditors and the Phase 4 and 5 test gates get Opus. The interview fan-out lanes follow their own rule: mechanical lanes run on Haiku, and any lane the skill doesn't name uses the session model.
 
@@ -133,7 +134,7 @@ development-workflow/
   README.md     This file
   SKILL.md      The skill definition and source of truth for phase order, gates and state tracking
   references/   Detail loaded on demand from named phases
-  evals/        evals.json (26 authored prompts with expectations) and files/build-fixtures.sh
+  evals/        evals.json (27 authored prompts with expectations) and files/build-fixtures.sh
   DESIGN.md     Dated design decisions and audit history
 ```
 
@@ -150,7 +151,7 @@ development-workflow/
 
 ## Evals
 
-`evals/evals.json` holds 26 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
+`evals/evals.json` holds 27 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
 
 ```bash
 bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed]

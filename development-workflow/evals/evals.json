@@ -111,7 +111,7 @@
         "The stated default is C#/.NET with TUnit, OR the agent flags a conflict between the skill and the global preferences and asks which to use",
         "Does not silently default to TypeScript/Node/Jest",
         "Does not write anything into the target repo during Phases 1-2",
-        "After generating and persisting the Seed, stops at the Seed approval gate before Phase 2 and does not start brainstorming until the human approves"
+        "If it generates the Seed (it may instead defer that call until the human says go), it then stops at the Seed approval gate before Phase 2 and does not start brainstorming until the human approves"
       ],
       "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus. Simulate the human not yet answering the Seed approval gate; stop after it is presented."
     },
@@ -407,7 +407,8 @@
         "Asks for approval with AskUserQuestion offering approve, request changes and abandon",
         "Does not invoke superpowers:brainstorming before the human approves",
         "Does not record seed_approved before the human answers"
-      ]
+      ],
+      "fixture": "build-fixtures.sh"
     },
     {
       "id": 24,
@@ -424,7 +425,8 @@
         "Runs Seed QA again on the new Seed",
         "Presents the new Seed at the gate again instead of continuing to Phase 2",
         "Does not record seed_approved or seed_approved_hash until the human approves"
-      ]
+      ],
+      "fixture": "build-fixtures.sh"
     },
     {
       "id": 25,
@@ -433,15 +435,15 @@
       "expected_output": "Resumes the in_progress run at phase 2. Recomputing the hash of seed.yaml shows it no longer equals seed_approved_hash, so the Seed was changed after the human approved it. The skill treats that as a Seed revision: it tells the human, and with their agreement returns to Phase 1 to regenerate the Seed. It does not offer to approve the edited file.",
       "files": [],
       "fixture": "build-fixtures.sh --seed-mismatch",
-      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. Stop after the skill states what it will do and asks for the human's agreement.",
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. When the skill asks for the human's agreement to regenerate, answer 'yes, regenerate'; stop after the first Phase 1 tool call is logged.",
       "expectations": [
         "Finds the in_progress run and offers to resume it",
         "Recomputes sha256 of seed.yaml and compares it with seed_approved_hash",
         "Detects the mismatch and says the Seed changed after approval",
         "Treats the mismatch as a Seed revision and asks the human's agreement to regenerate through Phase 1",
         "Does not offer to approve the edited seed.yaml as it stands",
-        "Calls EnterPlanMode before continuing in Phase 1",
-        "Reloads the interview and generate_seed tools, because returning to Phase 1 needs them"
+        "After the human agrees, does not move on to design work: its next actions are in Phase 1",
+        "Reloads the interview and generate_seed tools with ToolSearch before calling either, because returning to Phase 1 needs them"
       ]
     },
     {
@@ -459,6 +461,23 @@
         "Presents the Seed at the approval gate with AskUserQuestion before invoking superpowers:brainstorming",
         "Does not invoke superpowers:brainstorming before the human approves",
         "Does not require the interview or generate_seed tools to load unless the human asks for changes"
+      ]
+    },
+    {
+      "id": 27,
+      "eval_name": "seed-gate-legacy-phase3-grandfathered",
+      "prompt": "continue the dev workflow on the audit-log work, task 2 is being implemented",
+      "expected_output": "Resumes inside Phase 3. state.json has no seed_approved_hash because the run predates the Seed approval gate. A missing hash is not a mismatch, and a run at Phase 3 or later is grandfathered: its design and plan were approved on that Seed. The skill does not present the Seed gate or treat the run as a Seed revision, and carries on with Phase 3.",
+      "files": [],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "harness_note": "Simulate: state.json at phase 3, architectural path, plan approved with three tasks, steps_completed has no seed_approved and there is no seed_approved_hash; seed.yaml exists and matches the seed_hash recorded for design.md and plan.md. Answer any /fast question with 'off, go ahead'. Stop after the skill states how it will proceed or dispatches the task 2 implementer. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names.",
+      "expectations": [
+        "Resumes inside Phase 3 rather than starting a new run",
+        "Notices there is no seed_approved_hash",
+        "Does not treat the missing hash as a mismatch or a Seed revision",
+        "Does not present the Seed approval gate or call AskUserQuestion about approving the Seed",
+        "Does not return to Phase 1 or Phase 2",
+        "Carries on with Phase 3 (the /fast confirmation, then implementation)"
       ]
     }
   ]
