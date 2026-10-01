@@ -215,13 +215,16 @@ Run these in order.
   the plan trace to each other (every acceptance criterion has a design
   element and something that proves it), agree with each other and with the
   current repo (every file path, function, table and command they name exists
-  as described), that the plan is sound, and that both hold to SOLID and, where
-  the human's instructions give a security checklist, to that checklist. The
+  as described), that the plan is sound, that both hold to SOLID and, where
+  the human's instructions give a security checklist, to that checklist, and
+  that every new dependency is justified. The
   reviewer reads files, so persist `design.md` (and `plan.md`) and record
   their `seed_hash` first (see the redirect rule below). If the security gate
   above also fires, dispatch both together; they are independent. Tell the
-  mode C reviewer whether the security gate is running, so it doesn't repeat
-  mode A's findings. If a reviewer subagent can't be
+  mode C reviewer whether mode A has already covered the current design (at
+  this gate or at the spec gate) and the plan leaves the design's auth and
+  network surface unchanged. If so, mode C skips what mode A covers; if not,
+  it covers that ground too. If a reviewer subagent can't be
   dispatched, do the audit yourself and say so.
   - Handle findings per the "Controller handling" section of
     `references/reviewer-brief.md`: fix or flag every Critical and Important
@@ -434,11 +437,17 @@ Run these three steps in this order.
    invalidates (or invoke a `/pre-commit`-style skill if the project has
    one). Commit doc updates on the branch before verification and finishing;
    never push with the docs out of sync. Where the human's own instructions
-   require an audit of generated instructional documents (runbooks, ADRs, setup
-   guides), run it on those updates before committing them, in a subagent on
-   `model: opus` that reports findings and never edits. Put the findings to the
-   human and don't commit the updates until they have ruled on each one; it adds to the
-   checks here. Also check that the Seed's documentation criteria, which Phase 4 left out,
+   require an audit of generated instructional documents, run it before
+   committing the doc updates, over every instructional file the branch
+   changes, including ones Phase 3 already committed (runbooks, checklists,
+   ADRs, setup guides, `CLAUDE.md`/`AGENTS.md` edits, skill files, plans or
+   specs written to files). Use the `spec-auditor` agent on `model: opus`; if
+   it isn't installed, say so and use a fresh `general-purpose` subagent on
+   `model: opus`. It reports findings and never edits. Put the findings to the
+   human and don't commit the doc updates until they have ruled on each one.
+   This adds to the checks here. `seed.yaml` isn't audited this way (it is
+   tool-generated and graded by `ouroboros_qa`), and a run's `design.md` and
+   `plan.md` already got mode C's audit in Phase 2. Also check that the Seed's documentation criteria, which Phase 4 left out,
    are met by the doc updates, and record `doc_criteria_met` in
    `steps_completed`. If they aren't met, update the docs and re-check; if a
    criterion can't be met, stop and ask before verification or finishing.

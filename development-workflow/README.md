@@ -73,7 +73,7 @@ Three more rules apply. You may accept a REVISE verdict and proceed; the skill n
 
 **Commit cadence.** Phase 3 commits after every completed step, but only when the build is green and that step's own tests pass. It stages explicit paths, never commits onto `main`/`master`, and never pushes.
 
-**Doc-sync before push.** Phase 5 updates the README and `docs/` the diff invalidates before any `git push`, and checks the Seed's documentation criteria, which Phase 4 deliberately leaves out.
+**Doc-sync before push.** Phase 5 updates the README and `docs/` the diff invalidates before any `git push`, and checks the Seed's documentation criteria, which Phase 4 deliberately leaves out. If your instructions require an audit of instructional files, Phase 5 also runs it (with `spec-auditor` on Opus) over every such file the branch changes, and you rule on each finding before the doc updates are committed.
 
 ---
 
