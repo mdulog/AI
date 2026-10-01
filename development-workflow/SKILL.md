@@ -102,7 +102,8 @@ Run these in order.
     `constraints`, `project_type`), so copy each of the human's sentences
     verbatim into the matching key rather than paraphrasing. No interview.
 - Invariant: a Seed YAML is always produced by the end of this phase, regardless of
-  which path was taken. Never let Phase 2 start without one.
+  which path was taken. Never let Phase 2 start without one, or before the human approves it (see the Seed
+  approval gate below).
 - Seed generation can refuse or ask for more: an ambiguity refusal after an
   interview, or `gap_questions_required` on the direct path. Read
   `references/seed-generation-edge-cases.md` before calling
@@ -117,6 +118,25 @@ Run these in order.
   or FAIL (carry every difference into Phase 2 as an open question, offer one
   opt-in refinement pass, never run it without an explicit yes, never
   hand-edit the Seed), and the refinement pass itself.
+- **Seed approval gate** (fires once the Seed is persisted, after Seed QA and any
+  refinement pass, before Phase 2; both paths, interview or direct). The Seed is the
+  source of truth every later artifact is hashed against, and the direct path builds
+  it from the human's sentences without showing them the result, so the human
+  approves it before design work starts. Present the goal, the acceptance criteria,
+  the constraints, the Seed QA verdict and the open questions QA raised, not the
+  YAML (`seed.yaml` stays readable on disk). Ask with `AskUserQuestion`: approve,
+  request changes, or abandon. This is a human gate: never approve on their behalf,
+  and the QA verdict stays advisory.
+  - Approve: append `seed_approved` to `steps_completed` and record the Seed's hash
+    as `seed_approved_hash` in `state.json`.
+  - Request changes: on the direct path, merge the human's changes verbatim into
+    `session_context` and call `ouroboros_generate_seed` again (the same input would
+    return the same Seed); on the interview path, feed the changes into the
+    interview session as a new answer, then regenerate. Reload the Ouroboros tools
+    with ToolSearch first, since schemas can unload between turns. Never hand-edit
+    the Seed. The new Seed has a new hash, so run Seed QA and this gate again.
+  - Abandon: set `state.json`'s `status` to `abandoned` and close the
+    `[dev-workflow]` todos.
 - **Fan-out model assignment sub-rule** (fires during interview advisory
   fan-out): default mechanical/low-judgment lanes (`data_context`,
   `answer_simplifier`) to Haiku; reserve Sonnet/Opus for lanes needing deeper
@@ -425,6 +445,8 @@ Run these three steps in this order.
 - On any Seed revision: return to Phase 2, re-run brainstorming with the updated
   Seed as context, and require a fresh design/plan approval before Phase 3
   resumes or continues. Never silently carry a stale spec or plan forward.
+- A revised Seed also needs fresh approval at the Phase 1 Seed approval gate:
+  `seed_approved_hash` must equal the current Seed's hash before Phase 2 starts.
 - Identify a Seed version by its `seed_hash`: the SHA-256 of the exact bytes
   of `seed.yaml` as persisted (commands in `references/run-lifecycle.md`). Record the `seed_hash` each
   `design.md` and
@@ -482,7 +504,7 @@ Run these three steps in this order.
     with `design_drafted` and `design_approved`, to know which approval gate
     comes next.
   - Append to `steps_completed` as each step finishes (for example
-    `seed_generated`, `seed_qa: REVISE`, `design_drafted`, `design_audit`,
+    `seed_generated`, `seed_qa: REVISE`, `seed_approved`, `design_drafted`, `design_audit`,
     `design_approved`, `plan_approved`, `qa_on_diff`), so a
     resumed run knows what already ran.
   - Store paths as full forward-slash paths that both your shell and git
@@ -491,8 +513,20 @@ Run these three steps in this order.
     finishing cleans up, so check the path exists before reusing it.
   - Record the `seed_hash` next to `design.md` and `plan.md` when each is
     persisted.
+  - Record `seed_approved_hash` (top-level) and append `seed_approved` when the
+    human approves the Seed at the Phase 1 gate. `steps_completed` is
+    append-only, so judge approval by `seed_approved_hash` equalling the current
+    `seed.yaml` hash, never by the step's presence.
   - Check staleness (recompute the hash and compare) on resume and again
     before Phase 3 starts.
+  - On resume and before Phase 3, also compare the current `seed.yaml` hash with
+    `seed_approved_hash`. A mismatch is a Seed revision: regenerate through
+    Phase 1 with the human's agreement (see Seed versioning). Never offer to
+    approve the edited file, which would bless a hand edit.
+  - A resumed run at Phase 2 with no `seed_approved` gets the Seed approval gate
+    before design work continues; asking for changes there is a Seed revision
+    (see Seed versioning). A run already at Phase 3 or later is grandfathered:
+    its design and plan were approved on that Seed.
   - Set `complete` when Phase 5 finishes or a Spike ends.
   - Set `abandoned` if the human drops the run, so resume stops offering it.
 
