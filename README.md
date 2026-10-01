@@ -282,7 +282,7 @@ development-workflow/
                 edge cases, Seed QA, doc baseline, Phase 3 execution, Phase 4 QA,
                 the reviewer subagent brief, run lifecycle details, and Context7
                 and stack defaults
-  evals/        evals.json (27 test prompts with expectations) and files/
+  evals/        evals.json (30 test prompts with expectations) and files/
                 build-fixtures.sh for the sandboxes they run in
   DESIGN.md     Design rationale, audit history, and later changes
 ```

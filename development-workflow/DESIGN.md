@@ -1006,7 +1006,7 @@ Limits: the gate is prose in `SKILL.md`, and a model can skip prose. The hash
 check at Phase 3 start is the backstop: a run still at Phase 2 with an absent or
 mismatched `seed_approved_hash` stops there (the gate for an absent hash,
 regeneration for a mismatch). A script that refuses Phase 3 without a matching
-`seed_approved_hash` would be stronger and is not built. The new evals (23-27)
+`seed_approved_hash` would be stronger and is not built. The new evals (23-30)
 were checked by hand against the fixtures, not run, and evals 3, 5, 7, 8, 17,
 18, 20 and 21 were edited to expect the gate or an approved Seed.
 

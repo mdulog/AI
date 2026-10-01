@@ -479,6 +479,65 @@
         "Does not return to Phase 1 or Phase 2",
         "Carries on with Phase 3 (the /fast confirmation, then implementation)"
       ]
+    },
+    {
+      "id": 28,
+      "eval_name": "seed-gate-abandon",
+      "prompt": "use the full dev workflow pipeline: add a --dry-run flag to the export command in src/export/. constraints: no new dependencies, don't change the default behavior. done when running with --dry-run prints the rows it would export and writes nothing.",
+      "expected_output": "Direct path: the Seed is generated, persisted and graded by advisory Seed QA, then presented at the Seed approval gate. The human answers 'abandon'. The skill sets state.json status to abandoned, closes the [dev-workflow] todos, calls ExitPlanMode so the session leaves plan mode, and never invokes superpowers:brainstorming.",
+      "files": [],
+      "fixture": "build-fixtures.sh",
+      "harness_note": "When the agent logs WOULD CALL ouroboros_qa, tell it to assume verdict PASS, Session: qa-281. When the agent presents the Seed at the gate with AskUserQuestion, answer: 'abandon'. Stop after the skill's next actions are logged. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus.",
+      "expectations": [
+        "Takes the direct Seed path with no interview",
+        "Persists seed.yaml in the run directory",
+        "Presents the Seed at the gate with AskUserQuestion offering approve, request changes and abandon",
+        "Sets state.json status to abandoned",
+        "Closes or deletes the [dev-workflow] todos",
+        "Calls ExitPlanMode so the session leaves plan mode",
+        "Does not invoke superpowers:brainstorming",
+        "Does not record seed_approved or seed_approved_hash"
+      ]
+    },
+    {
+      "id": 29,
+      "eval_name": "seed-gate-request-changes-interview-path",
+      "prompt": "use the full dev workflow pipeline: I want the app to notify users when something important happens. not sure what counts as important yet or which channels. multi-file change for sure.",
+      "expected_output": "The goal and criteria are not stated, so the interview runs. After the interview concludes, generate_seed produces a Seed, which is persisted and graded by advisory Seed QA, then presented at the gate. The human asks for a change. On the interview path the skill feeds the change into the same interview session as a new answer, reloads the Ouroboros tools with ToolSearch, regenerates, and the new Seed (new hash) goes through Seed QA and the gate again. It never hand-edits seed.yaml and never starts a fresh interview.",
+      "files": [],
+      "fixture": "build-fixtures.sh",
+      "harness_note": "Stub the interview: ouroboros_interview returns session id int-291 and asks two questions. Answer them 'in-app banners and email' and 'a failed payment or a security alert'. The interview then concludes, generate_seed (session_id int-291) returns a Seed with goal 'Notify users of failed payments and security alerts', acceptance criteria 'a failed payment produces one in-app banner and one email' and constraints 'no new paid services'. When the agent logs WOULD CALL ouroboros_qa, assume verdict PASS, Session: qa-291. When it presents the Seed at the gate, answer: 'request changes: also notify on password changes'. Present the regenerated Seed once more and stop. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus.",
+      "expectations": [
+        "Runs ouroboros_interview rather than calling generate_seed directly",
+        "Persists seed.yaml in the run directory",
+        "Presents the first Seed at the gate with AskUserQuestion",
+        "Feeds the requested change into interview session int-291 as a new answer rather than starting a fresh interview",
+        "Does not hand-edit seed.yaml",
+        "Reloads the Ouroboros tools with ToolSearch before calling the interview or generate_seed again",
+        "Re-persists seed.yaml so its hash changes",
+        "Runs Seed QA again on the new Seed",
+        "Presents the regenerated Seed at the gate again instead of continuing to Phase 2",
+        "Does not record seed_approved or seed_approved_hash until the human approves"
+      ]
+    },
+    {
+      "id": 30,
+      "eval_name": "seed-gate-after-refinement-pass",
+      "prompt": "use the full dev workflow pipeline: goal is to add rate limiting to our public API. constraints: must not break existing clients, no new infrastructure. success: it should feel fast and be reasonably safe.",
+      "expected_output": "Direct path. Seed QA returns REVISE (simulated). The skill treats it as advisory, offers one opt-in refinement pass, and the human says yes. The pass produces a refined Seed with measurable criteria; seed.yaml is re-persisted (its hash changes), Seed QA runs again on the refined Seed, and the refined Seed, not the original, is presented at the Seed approval gate.",
+      "files": [],
+      "fixture": "build-fixtures.sh",
+      "harness_note": "When the agent logs WOULD CALL ouroboros_qa on the first Seed, tell it to assume verdict REVISE, Session: qa-301, suggestions: (1) 'feel fast' is not measurable, (2) 'reasonably safe' is undefined, (3) no limit values stated. When it offers the refinement pass, answer 'yes, run it'. Simulate the pass returning a refined Seed whose acceptance criteria are 'p99 added latency under 5ms' and 'more than 100 requests per minute per API key returns HTTP 429'. When the agent logs WOULD CALL ouroboros_qa on the refined Seed, assume verdict PASS, Session: qa-302. When it presents the Seed at the gate, stop. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus.",
+      "expectations": [
+        "Reports the first QA verdict REVISE as advisory and offers one opt-in refinement pass",
+        "Does not run the refinement pass until the human says yes",
+        "Re-persists seed.yaml after the pass so its hash changes",
+        "Does not hand-edit seed.yaml outside the refinement pass",
+        "Runs Seed QA again on the refined Seed",
+        "Presents the refined Seed (with the measurable criteria), not the original, at the Seed approval gate",
+        "Does not invoke superpowers:brainstorming before the human approves",
+        "Does not record seed_approved or seed_approved_hash before the human approves"
+      ]
     }
   ]
 }
