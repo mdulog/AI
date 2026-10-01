@@ -1,6 +1,10 @@
 # Design: `development-workflow` skill
 
 Status: in use; later changes are recorded in the 2026-09-29 backport section
+the "CLAUDE.md state, 2026-09-30" note above "CLAUDE.md impact", and the dated
+sections at the end (2026-09-30, 2026-10-01). Where an older
+section says Phase 0 classifies and then creates state, read it as superseded:
+Phase 0 is now "classify and preflight" and creates state at its step 5.
 Date: 2026-09-28
 Author: Claude (brainstorming session with Mike Dulog)
 
@@ -300,6 +304,27 @@ doc-sync check — never before, and never from the working artifacts above.
   session-keyed tool at all — see Phase 4's design-history note. No open risk
   remains here.
 
+## CLAUDE.md state, 2026-09-30 (read before "CLAUDE.md impact" and "Scope expansion")
+
+The sections "CLAUDE.md impact" and "Scope expansion: full CLAUDE.md umbrella
+absorption" describe a global `CLAUDE.md` that no longer exists in
+that form. The global `CLAUDE.md` carried the full 🤖 Workflow Preferences umbrella
+again (commit `2cf5d46` rewrote the repo copy to match it), and on
+2026-09-30 it was offloaded again, this time into the skill by user
+decision. Diff of the headings before and after:
+
+- Removed from `~/.claude/CLAUDE.md` (now owned by this skill, with an
+  auto-triggering superpowers skill as backstop for all but the last):
+  🌳 Git Worktrees, 🚀 Parallel Agents, 🧠 Brainstorm First, 🔴 TDD,
+  ✅ Before Claiming Work Complete, 🏁 When Implementation Is Complete, and
+  🚢 Before Push. Pre-push doc-sync has no backstop outside a pipeline run;
+  that was disclosed to the user and accepted.
+- Kept in `CLAUDE.md`: 📁 Project-Level Overrides, ⚡ Skills, 📐 Plan Mode,
+  ⏹️ Stop and Ask, 🛠️ Stack Defaults, 🔁 Commit Cadence (deliberately in both
+  places), 🕵️ Auditing Generated Instructional Documents, and a shortened
+  🔄 Development Workflow pointer.
+- 🗂️ Memory moved out of the umbrella into Personal Preferences.
+
 ## CLAUDE.md impact
 
 **Superseded by the Scope expansion section below** — this bullet list
@@ -395,6 +420,9 @@ user's personal `spec-auditor` agent directly. Reworded to describe the
 `spec-auditor` as an example, falling back to a manual check when no
 dedicated auditing agent is configured — full strength in this environment
 (where the agent exists), still meaningful in one that lacks it.
+(Superseded 2026-10-01: Phase 2 now dispatches the mode C reviewer from
+`references/reviewer-brief.md`; no `spec-auditor` is named. See the Mode C
+section at the end.)
 
 **A fourth spec-auditor pass, run specifically because this absorption had
 never been independently checked, found real problems** — the umbrella
@@ -501,7 +529,10 @@ because validation runs after `ExitPlanMode`.
 - **Review agents.** `silent-failure-hunter`, `type-design-analyzer`,
   `pr-test-analyzer` and `comment-analyzer` default to `model: inherit`
   (Sonnet outside plan mode), so `CLAUDE.md` now says to dispatch all four
-  with `model: opus`. `comment-analyzer` was briefly exempted as a mechanical,
+  with `model: opus` (**superseded 2026-09-30**: the rewritten global
+  `CLAUDE.md` has no such line; pipeline reviewers get `model: opus` from
+  `references/reviewer-brief.md` and `references/phase3-execution.md`, and
+  ad hoc spot-check agents inherit the session model). `comment-analyzer` was briefly exempted as a mechanical,
   non-blocking check; the exemption was dropped in favor of a rule with no
   special cases. Rejected:
   wrapper agents that copy the plugin agents with a pinned model, since they
@@ -604,7 +635,8 @@ documentation task), and the security-review timing "before invoking
   before the docs are checked.
 - **Also changed.**
   - Model notes: reviewers dispatched inside SDD choose their own model under
-    SDD's guidance, and `ouroboros_qa` ignores the session model "in Claude
+    SDD's guidance (**superseded 2026-09-30**: `references/phase3-execution.md`
+    now sets `model: opus` on every SDD reviewer), and `ouroboros_qa` ignores the session model "in Claude
     Code", including the Seed QA call in Phase 1.
   - Phase 3 asks the human to confirm `/fast` is off (a gate this skill
     introduces), runs the real-library spike if Phase 2 named one (after
@@ -737,6 +769,195 @@ Risks: the brief is a prompt, so its security checklist is only as good as the
 categories listed, and it can miss design flaws outside them. A dispatched
 reviewer that fails to spawn leaves Phase 2 falling back to the controller
 reviewing itself, which `SKILL.md` requires it to say out loud. Evals 10 and 11
-cover the two dispatches; eval 11's fixture has planted flaws (an IDOR against
+cover the code-review and security dispatches (eval 11 also exercises mode C
+and its re-run, three dispatches in all); eval 11's fixture has planted flaws (an IDOR against
 the Seed's "only their own exports", error-message leakage, and an S3 key built
 from caller input).
+
+## Model routing re-confirmed: opusplan plus explicit subagent models (2026-09-30)
+
+Intent, restated by the user: every phase on Opus except Phase 3
+implementation on Sonnet, verification back on Opus, then the session back
+on its default. An audit found `settings.json` had drifted to `opus`
+(then the user's `/model` command saved `sonnet`), so the `opusplan`
+assumptions in the skill no longer matched the machine.
+
+Options weighed: (A) main session stays on Opus with Sonnet implementer
+subagents, (B) `opusplan` routing, (C) manual `/model` stops. A was built
+first and then dropped. The user chose B and set `"model": "opusplan"`.
+
+Resulting policy, written as a Model policy section in `SKILL.md`:
+
+- Phases 1–2 run on Opus because plan mode is on. Phase 0 runs before plan
+  mode, on Sonnet, and classifies and runs read-only preflight checks. Phase 3 onward runs on Sonnet
+  after `ExitPlanMode`. `/fast` stays a stop-and-ask item, since it forces
+  Opus and breaks the routing.
+- Implementers get an explicit `model: sonnet`. Reviewers get `model: opus`.
+- Verification returns to Opus even though the main session is on Sonnet:
+  the Phase 4 test gate, and the Phase 5 re-run, go through a fresh subagent
+  on `model: opus` that returns command, raw output and verdict. Rejected:
+  re-entering plan mode for Phase 4, since plan mode blocks running the tests.
+- Phase 0 now checks that `model` is `opusplan`: it reads `settings.json`, the
+  project settings files and `ANTHROPIC_MODEL`, and asks the human when they
+  don't settle it (a session `/model` can override all of them unseen).
+- SDD's Model Selection and its BLOCKED remedies (under "Handle the report")
+  are overridden: they would move the model down for "mechanical" tasks
+  ("fast, cheap model") and up for design-judgment tasks, BLOCKED
+  implementers, and fix rounds 4–5. The skill never escalates on
+  its own; a BLOCKED task that needs more reasoning, a design-judgment task, or a round-4 fix loop is a stop-and-ask.
+
+Known trade-offs: Phase 0 and Phase 5 doc work run on Sonnet, not Opus.
+Only the verification runs get an Opus subagent. The Opus test-gate
+subagent pays for context the main session already has. The user's wish
+for "the default afterwards" costs nothing, since `opusplan` is the default.
+
+## Phase 0 reachability check (2026-09-30)
+
+`CLAUDE.md` claimed Phase 0 checks that `ouroboros_interview`,
+`ouroboros_generate_seed` and `ouroboros_qa` are reachable. It didn't: Phase
+0 only classified, so a missing Ouroboros server surfaced in Phase 1, after
+the run directory and todos existed. Phase 0 now loads the tools through
+ToolSearch before creating anything, and stops if one can't be loaded.
+
+## Mode C: Phase 2 design and plan audit (2026-10-01)
+
+Problem: Phase 2's pre-approval check said to verify the plan's facts with "a
+`spec-auditor`-style agent if one is configured, otherwise manually". Its
+quality depended on the machine, and nothing audited the Seed against the
+design and plan. Seed QA (Phase 1) grades the Seed document alone.
+
+Decision: one reviewer at each Phase 2 approval gate, as mode C in
+`references/reviewer-brief.md`. It is dispatched like modes A and B: a fresh
+`general-purpose` subagent on `model: opus`, read-only, documents treated as
+data. It runs once on the bounded path (at design approval) and twice on the
+architectural path (design alone at spec approval, design plus plan at plan
+approval). It checks (1) traceability, each Seed acceptance criterion to a
+design element and to its proof, which is the plan task and test when a plan
+exists and the design's testing section otherwise, plus scope creep and
+violated constraints; (2) consistency between `design.md`, `plan.md` and the
+current `seed_hash`, and that every Seed QA difference was resolved; (3) the
+repo facts the documents assert; (4) plan quality when a plan exists. The
+controller computes the current hash and passes it in, so the reviewer needs
+only read-only tools under plan mode.
+
+Rules that came out of the first audit of this design:
+
+- Persist the draft `design.md`, and record its `seed_hash`, before dispatching
+  mode A or C. On the bounded path the design used to be written only after
+  approval, so the reviewers would have had no file. If plan mode refuses the
+  write, the design goes inline with the current hash.
+- Findings marked "Seed gap" go to the human as a possible Seed revision and
+  never become a silent design fix; the design or plan isn't presented while a
+  Seed gap is unresolved. A revision after Phase 1 either returns to Phase 1
+  (re-running the tool preflight) or uses the opt-in refinement pass (needs
+  only `ouroboros_qa`).
+- After a Critical fix from mode C or from the security review, mode C re-runs
+  once on the changed documents; remaining findings are flagged, not looped.
+- No agent substitution. An earlier draft let mode C dispatch an installed
+  `spec-auditor`. That agent is the knowledge-base document auditor
+  (byte-identical to `generate-knowledge-base/Agents/spec-auditor.md`), with its
+  own inputs and High/Medium/Low labels, so it would not return the table and
+  severity counts the skill gates on. A user's own "audit every plan with
+  `spec-auditor`" rule is met by mode C's dispatch.
+
+Alternatives rejected: an installed agent file (drifts from the skill, absent
+on other machines, the same reason modes A and B are briefs); `ouroboros_qa`
+on `design.md` and `plan.md` (grades a document against a bar and cannot check
+the codebase, so it can't catch a plan that names a function that doesn't
+exist).
+
+Costs: one more Opus subagent per approval gate (two on the architectural
+path), a second dispatch next to mode A when the design touches auth, and a
+re-run after a Critical fix.
+
+## Decisions from the second Mode C audit (2026-10-01)
+
+- **Refused writes.** Plan mode can refuse `seed.yaml`, `state.json` and
+  `plan.md` as well as `design.md`. The fallback passes the Seed, design and
+  plan inline, mode C skips the hash comparison and says so, and the
+  `state.json` writes wait until after `ExitPlanMode`.
+- **Seed revision after Phase 1.** Only by regenerating through Phase 1, with
+  the human's agreement. The opt-in refinement pass stays what it was, a
+  response to Seed QA at the Phase 1→2 transition; it needs that QA session
+  and its suggestions, which a resume loses. A resume in Phase 1 needs all
+  three Ouroboros tools, a resume at Phase 2 or later only `ouroboros_qa`.
+- **Policy conflict.** The user's global Plan Mode rule names `spec-auditor`.
+  A skill can't declare that rule met by a different agent, so the global rule
+  was amended to accept mode C as the gate inside a pipeline run, with the
+  reason (the installed `spec-auditor` is the knowledge-base document auditor).
+- **Evals without fixtures.** Evals 17, 18 and 20 are marked simulation-only.
+  Evals 4, 10 and 11 name the `build-fixtures.sh` flag that builds their
+  scenario. Real plan-gate and bounded-draft fixtures can come later.
+- **Explicit request, out-of-scope change.** Phase 0 now says what eval 9
+  already required: explain the classification and offer the pipeline, and
+  create nothing unless the human opts in.
+- **State fields.** `path`, `design_drafted` and `design_approved` are now
+  documented write points; a resumed Phase 2 needs them to know which gate
+  comes next. The build-fixtures script already wrote them.
+
+## SKILL.md shrink: what moved where (2026-10-01)
+
+SKILL.md was 641 lines. Rarely-needed detail moved verbatim into references,
+and text already stated elsewhere was collapsed. Result: 584 lines. The
+~500-line guideline was not reached, and the plan said so up front: a plan
+audit showed the rest would mean moving rules that fire mid-run into files
+that are only read at Phase 0 or on resume.
+
+Moved (verbatim): worktree mechanics to `phase3-execution.md`; same-slug
+collisions, the Ouroboros worktree-root note, the outside-the-repo note and the
+`seed_hash` command and byte-change details to the new `run-lifecycle.md`;
+the Context7 and stack-defaults bodies to the new `engineering-defaults.md`;
+the Phase 5 doc-baseline backstop paragraph to `doc-baseline.md`; and the
+controller handling of mode A and mode C findings to `reviewer-brief.md`,
+in a section that is not part of the reviewer's prompt.
+
+Collapsed: the Phase 3 and Phase 4 model-policy bullets (the Model policy
+section and `phase4-qa.md` already hold the detail), the Phase 3 stop-and-ask
+bullet, the repeated below-threshold verdicts bullet, the duplicate
+run-directory sentence, and the "proceed to Phase 3 once approved" clauses
+that the Hard gate bullet repeats.
+
+Rules that stay in SKILL.md because they fire where no reference is loaded:
+the per-turn resume check and "never restart without asking", the
+`EnterPlanMode` re-entry rule, the `state.json` write points, Phase 0 step 2's
+classification rules, the bounded path's commit rules, Phase 4's code-review
+skip conditions, the Non-goals list, and the "never hand-edit the Seed" rule.
+A first draft moved State tracking and several of these into a reference; the
+plan audit rejected that, because a sentence-coverage check would still have
+passed while the rules were unreachable when they fire.
+
+Check used: every sentence of the old SKILL.md must appear in the new SKILL.md
+or in the touched references. The 19 sentences that didn't were reviewed by
+hand: 9 are the deliberate collapses above, 6 are verbatim moves the sentence
+splitter glued to a neighbouring heading, and 4 are pointer stubs whose
+full text now lives in a reference.
+
+## Summary-first rule and three corrected eval expectations (2026-10-01)
+
+The Phase 2 presentation rule now reads: lead with a 3-5 sentence executive
+summary, and on a resumed turn at most two short status sentences may come
+before it; the summary comes before the audit result and the list of fixes.
+
+Why: the first full eval run (iteration 2) showed the new skill's eval 17 run
+opening with status sentences before the summary, while the pre-refactor
+snapshot's run opened with the summary. The stricter clause added earlier
+("resume status comes after it, not before") did not change that. The
+original wording ("lead … above the detailed plan") was the skill's own, from
+commit `47ead98`; it is not a CLAUDE.md rule, and an earlier note in the
+planning for this change wrongly said it was. The user chose the relaxed
+standard (up to two short status sentences).
+
+Eval expectations corrected, with reasons:
+
+- Eval 17: now states the relaxed standard (above).
+- Eval 16: a faithful run may name model-neutral alternatives (more context, a
+  smaller task, a fresh Sonnet implementer, stop and report) after a declined
+  Opus, as `phase3-execution.md` lists them. The old wording forbade that.
+- Eval 7: when the human asks "before we start", answering the stack question
+  and deferring the `generate_seed` call until they say go is acceptable; the
+  old wording required the call to be logged.
+
+Caveat: these corrections were made after seeing the failures, so the
+corrected scores are not an unbiased pass rate. The original scores
+(51/53 new skill vs 53/53 snapshot on the matched evals; 5/6 on eval 16) are
+kept in the eval-run report.

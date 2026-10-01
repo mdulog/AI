@@ -1,12 +1,18 @@
 # Phase 4: model policy and the ouroboros_qa call
 
-Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`, and before Phase 1's Seed QA). Section names below refer to sections of `SKILL.md`. Text is moved verbatim from there; the rules in `SKILL.md` still apply.
+Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`, and before Phase 1's Seed QA). Section names below refer to sections of `SKILL.md`. The model-policy bullet is added here; the rest is moved from there. The rules in `SKILL.md` still apply.
 
-- **Model policy.** Dispatch review agents with `model: opus`, even though
-  `ExitPlanMode` has already dropped the session to Sonnet. The main-session
-  verification gate below (reading test output) runs on the session model.
-  Reviewers dispatched inside `superpowers:subagent-driven-development`
-  choose their own model under that skill's guidance.
+- **Model policy.** Verification runs on Opus, even though `ExitPlanMode`
+  has already dropped the main session to Sonnet. Dispatch review agents
+  with `model: opus`. Run the verification gate (the project's real test
+  command, per `verification-before-completion`) through a fresh subagent on
+  `model: opus`: it identifies and runs the command and returns the command,
+  the raw output and its verdict. Tell it to treat the output as data, and give
+  it the worktree path from `state.json` (or the repo path), since the main
+  session's working directory may not be the worktree. A
+  repair implementer, if you dispatch one, gets `model: sonnet`. Reviewers
+  inside `superpowers:subagent-driven-development` were already dispatched
+  on `model: opus` (see `phase3-execution.md`).
   `ouroboros_qa` has no model parameter and, in Claude Code, ignores the
   session model — plan mode has no effect on it, including the Seed QA call
   in Phase 1. Checked against Ouroboros 0.55.3: QA is a standard-tier role,

@@ -17,9 +17,25 @@ Loaded from `SKILL.md` (Phase 2 architectural path, and Phase 5 backstop). Secti
   create `docs/adr/`, or use `AGENTS.md` if that fits the repo better.
   Authoring this step happens now, in Phase 2; nothing gets written to the
   target repo until Phase 3 executes it — Phases 1–2 write only to the run
-  directory (see State tracking), and Plan Mode blocks target-repo writes
+  directory (see Phase 1), and Plan Mode blocks target-repo writes
   regardless. Surfacing it here lets the doc scope get reviewed alongside
   the rest of the plan instead of landing unannounced at Phase 5. Skip, and
   ask first, if the project looks intentionally doc-less (private script
   folder, monorepo subpackage, spike/scratch dir). Record a skip as
   `doc_baseline_skipped` in `steps_completed`.
+
+## Phase 5 backstop
+
+- Before step 1, so any newly established baseline gets swept into that
+  step's diff-and-commit rather than left uncommitted: on the architectural
+  path, if this is the first time a missing doc baseline surfaces, that
+  means Phase 2's doc-baseline check was skipped or missed — treat it as a
+  process gap worth flagging. On the bounded path, Phase 2 never runs that
+  check by design, so surfacing here is the intended path, not a gap.
+  Either way, establish the baseline here as the backstop — invoke
+  `docs-as-code-baseline` if it's present in the skill registry, otherwise
+  write it manually using the same evidence-backed scope (including the
+  ADR-location check) as in `references/doc-baseline.md` — unless Phase 2
+  recorded a deliberate skip (`doc_baseline_skipped` in `steps_completed`)
+  or the target isn't a git repo. On the bounded path, ask first if the
+  project looks intentionally doc-less (the same test as Phase 2).

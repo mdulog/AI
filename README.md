@@ -29,7 +29,7 @@ cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
 
 # 2. Deploy the agents
 mkdir -p .claude/agents
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 
 # 3. Run from your project root in Claude Code
 /generate-knowledge-base
@@ -236,10 +236,10 @@ The skill is a single `SKILL.md` that acts as a resumable state machine. It stop
 
 | Phase | What happens |
 |---|---|
-| 0. Classify | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). Out-of-scope work, such as a typo fix, is done directly with no run. |
+| 0. Classify and preflight | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). It also checks that the model setting is `opusplan` and that the Ouroboros tools can be loaded, before creating anything. Out-of-scope work, such as a typo fix, is done directly with no run. |
 | 1. Requirements → Seed | Interviews you if goal, constraints, and success criteria aren't all stated, then generates a Seed spec. Runs in plan mode. |
-| 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. If the design touches auth or a public network surface, a separate reviewer subagent checks it for security risks before you see it. |
-| 3. Isolate & execute | Creates a git worktree for the branch (skipped outside a git repo), then implements with TDD. Architectural plans run through `superpowers:subagent-driven-development`, and bounded changes run inline. |
+| 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. Before you see the design or plan, a separate reviewer subagent audits the Seed, design and plan against each other and the repo (every acceptance criterion needs a design element and something that proves it). If the design touches auth or a public network surface, a separate reviewer subagent checks it for security risks before you see it. |
+| 3. Isolate & execute | Creates a git worktree for the branch (skipped outside a git repo), then implements with TDD on Sonnet. Architectural plans run through `superpowers:subagent-driven-development`, and bounded changes run inline. |
 | 4. Evaluate | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a separate reviewer subagent to run `pr-review-toolkit:review-pr` on the branch diff. A REVISE or FAIL verdict is reported to you, never auto-retried. |
 | 5. Finish & push | Checks docs are in sync, verifies, then finishes the branch. |
 
@@ -247,10 +247,10 @@ The skill is a single `SKILL.md` that acts as a resumable state machine. It stop
 
 - The [Ouroboros](https://github.com/Q00/ouroboros) plugin (the `ouroboros_*` MCP tools)
 - The `superpowers` and `pr-review-toolkit` plugins
-- `"model": "opusplan"` in `~/.claude/settings.json`, so planning runs on Opus and implementation on Sonnet. Keep `/fast` off during Phase 3, since it forces Opus everywhere.
+- `"model": "opusplan"` in `~/.claude/settings.json`, so planning runs on Opus and implementation on Sonnet. Keep `/fast` off during Phase 3, since it forces the main session onto Opus. Implementers are dispatched on Sonnet. Reviewers and auditors are dispatched on Opus, and the test gate in Phases 4 and 5 runs in an Opus subagent because the main session is on Sonnet by then. Phase 0 checks the setting, including a project-level override.
 - For `ouroboros_qa` to run on Opus, `~/.ouroboros/config.yaml` sets `models.pin: true` and `llm.qa_model: opus`. Without it QA runs on Sonnet, and the skill tells you so before the Seed check.
 
-The skill carries its own model policy, commit rules, and review order, so it doesn't depend on this repo's [`CLAUDE.md`](CLAUDE.md). Its greenfield stack defaults (C#/.NET with TUnit, React/TypeScript with Jest) copy the ones in that file. If your own `CLAUDE.md` names a different stack, the skill asks which to use.
+The skill carries its own model policy, commit rules, and review order, so it doesn't depend on this repo's [`CLAUDE.md`](CLAUDE.md). Its greenfield stack defaults (C#/.NET with TUnit, React/TypeScript with Jest) copy the ones in the author's global `~/.claude/CLAUDE.md`. If your own `CLAUDE.md` names a different stack, the skill asks which to use.
 
 ## Quick start
 
@@ -278,9 +278,10 @@ Seed, design, and plan files are never written into the target repo. Each run ge
 development-workflow/
   SKILL.md      The skill (deploy to ~/.claude/skills/development-workflow/)
   references/   Detail that SKILL.md loads at the phase that needs it: seed generation
-                edge cases, Seed QA, doc baseline, Phase 3 execution, Phase 4 QA, and
-                the reviewer subagent brief
-  evals/        evals.json (11 test prompts with expectations) and files/
+                edge cases, Seed QA, doc baseline, Phase 3 execution, Phase 4 QA,
+                the reviewer subagent brief, run lifecycle details, and Context7
+                and stack defaults
+  evals/        evals.json (22 test prompts with expectations) and files/
                 build-fixtures.sh for the sandboxes they run in
   DESIGN.md     Design rationale, audit history, and later changes
 ```

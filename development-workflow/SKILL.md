@@ -18,28 +18,81 @@ description: "Runs the Ouroboros→Superpowers engineering pipeline (classify �
   invoking this skill, that is a fully valid, unblocked path, not a shortcut to
   discourage.
 
-## Phase 0 — Classify
+## Model policy
 
-In scope if any of these apply: a multi-file refactor or new feature spanning
-more than 2 files; requirements are ambiguous and need clarification before
-touching code; or an infrastructure change (CI/CD, migrations, dependency
-upgrades). Out of scope (e.g. a one-line typo fix): stop here, do nothing
-further — no todo list, no run directory, just make the change directly.
+The intent: planning, review and verification on Opus; implementation on
+Sonnet; the session back on its default afterwards. A skill can't switch the
+session's model (`/model` is a human command), so two mechanisms do it:
 
-Before classifying anything as new, check for a resumable run (see State
-tracking).
+- **`opusplan` routing** (the global `model` setting). The session runs on
+  Opus while permission mode is `plan` (Phases 1–2) and on Sonnet otherwise
+  (Phase 3 onward, once `ExitPlanMode` has run). Phase 0 runs before plan mode
+  and so on Sonnet; it classifies and runs read-only preflight checks,
+  including one that the setting is still `opusplan`. Nothing needs switching
+  back at the end, because `opusplan` is the default.
+- **Explicit `model:` on every subagent this skill dispatches.** Implementers,
+  fixers and parallel agents get `model: sonnet` (unless the human has
+  allowed Opus for a task, see Phase 3). Reviewers and auditors (the
+  Phase 2 design audit and security review, the Phase 4 code review), and the
+  Phase 4 and Phase 5 verification runs, get `model: opus`. An omitted `model`
+  inherits the session's, which is Sonnet after `ExitPlanMode`. The interview
+  fan-out lanes follow their own sub-rule in Phase 1.
+- **Trade-off: Sonnet makes some judgment calls.** After `ExitPlanMode` the
+  Sonnet main session builds the `ouroboros_qa` artifact and quality bar,
+  triages review findings, and classifies a REVISE as implementation wrong or
+  Seed wrong. Only reviewers and the test gate run on Opus. When that
+  classification is ambiguous, dispatch an Opus reviewer (`model: opus`) to
+  propose it, and show its reasoning to the human.
 
-In scope: after that check, create the run directory (see Artifact storage
-convention) and the `[dev-workflow]`-prefixed phase todo list (see State
-tracking).
+## Phase 0 — Classify and preflight
+
+Run these in order.
+
+1. **Resumable run.** First check for a resumable run (see State tracking). If
+   the human is resuming one, skip step 2, run steps 3–4 for the phase it
+   records, and carry on at that phase without creating a new run directory.
+   Otherwise this is a new run.
+2. **Classify** (new runs). In scope if any of these apply: a multi-file
+   refactor or new feature spanning more than 2 files; requirements are
+   ambiguous and need clarification before touching code; or an
+   infrastructure change (CI/CD, migrations, dependency upgrades). Out of
+   scope (e.g. a one-line typo fix): stop here, do nothing further — no todo
+   list, no run directory, no preflight, just make the change directly. If
+   the human explicitly asked for the workflow, say how you classified the
+   request and why, and offer to run the pipeline anyway instead of silently
+   making the change; create nothing unless they opt in.
+3. **Model check.** Read `~/.claude/settings.json`, the project's
+   `.claude/settings.json` and `.claude/settings.local.json`, and the
+   `ANTHROPIC_MODEL` environment variable. Proceed only if they clearly
+   leave `"model": "opusplan"` in effect. Otherwise say what you found and
+   ask the human to confirm that `/model` shows `opusplan`: without it
+   Phases 1–2 would not run on Opus and the Sonnet implementation would not
+   be guaranteed. A session-level `/model` or `--model` can override every
+   one of these and the agent can't see it, so when the files don't settle
+   it, ask.
+4. **Ouroboros tools.** A new run needs `ouroboros_interview`,
+   `ouroboros_generate_seed` and `ouroboros_qa`. A resume in Phase 1 needs all three. A
+   resume at Phase 2 or later needs only `ouroboros_qa`, since the interview and Seed tools are used only
+   in Phase 1. The tools are usually deferred, so judging by their absence
+   from the tool list is wrong. Load them with one ToolSearch query naming
+   the ones needed; for a new run:
+   `select:mcp__plugin_ouroboros_ouroboros__ouroboros_interview,mcp__plugin_ouroboros_ouroboros__ouroboros_generate_seed,mcp__plugin_ouroboros_ouroboros__ouroboros_qa`.
+   Every name must come back. If one is missing, say which and stop. On a new
+   run nothing has been created, so there is no run directory and no todo
+   list; on a resume leave `state.json` untouched. Failing here is cheaper
+   than failing in Phase 1 with state already written.
+5. **Create the run** (new runs only). Create the run directory (see Artifact
+   storage convention) with `state.json` (phase 0, `status` `in_progress`)
+   and the `[dev-workflow]`-prefixed phase todo list (see State tracking).
+   Read `references/run-lifecycle.md` when creating the run directory.
+   Nothing is created before steps 2–4 have passed.
 
 ## Phase 1 — Requirements → Seed
 
 - Call `EnterPlanMode` at the start of Phase 1, before the first interview
-  question or seed call. This
-  puts discovery/planning on Opus (the `opusplan` model routing auto-upgrades
-  while permission mode is `plan`; `/fast` overrides this independently if
-  it's on).
+  question or seed call. This puts discovery and planning on Opus (`opusplan`
+  routing upgrades the model while permission mode is `plan`; see Model
+  policy; `/fast` overrides this independently if it's on).
 - Check whether goal, constraints, AND success criteria are all already stated.
   - No → run `ouroboros_interview` (conversational, multi-turn). This is a hard
     gate — wait for it to conclude. Then call `ouroboros_generate_seed` with
@@ -69,6 +122,8 @@ tracking).
   `answer_simplifier`) to Haiku; reserve Sonnet/Opus for lanes needing deeper
   reasoning (`ambiguity_contrarian`). Any lane not named here uses the
   session model.
+- If the human asks about the stack or language defaults in this phase, read
+  `references/engineering-defaults.md`.
 - Persist the Seed to `seed.yaml` in the run directory immediately — don't let it
   live only in chat. Writes to the run directory (outside the target repo) are
   the only writes Phases 1–2 make, plus the revision note that Ouroboros's
@@ -85,10 +140,8 @@ tracking).
   architectural, or spike) — don't hardcode a path here. If brainstorming's complexity
   ratchet upgrades a bounded task to architectural mid-session, let it; this skill
   doesn't fight that.
-  - Bounded: short in-chat design, no plan document — proceed directly to Phase 3
-    once the design is approved.
-  - Architectural: invoke `superpowers:writing-plans` next — proceed to Phase 3
-    once the plan is approved. Tell `writing-plans` up front that the
+  - Bounded: short in-chat design, no plan document.
+  - Architectural: invoke `superpowers:writing-plans` next. Tell `writing-plans` up front that the
     execution method is subagent-driven, so it uses its own "method already
     supplied" branch and asks only for plan review. If it still asks at its
     handoff choice, answer subagent-driven without asking the human. Phase 3
@@ -109,8 +162,10 @@ tracking).
 - **Security-review gate sub-rule** (fires within this phase, before the design
   or plan is presented for approval): if the design touches authentication,
   authorization, or a public network surface, dispatch a separate reviewer
-  subagent to check the design for security risks. Read
-  `references/reviewer-brief.md` and use its mode A. Fix every Critical and
+  subagent to check the design for security risks. Persist `design.md` first
+  (see the redirect rule below). Read `references/reviewer-brief.md` and use
+  its mode A, once, at the design or spec approval; re-run it at the plan
+  gate only if the plan changes the design's auth or network surface. Fix every Critical and
   Important finding in the design, or flag it to the human, before the design
   is presented. The `security-guidance` plugin can't do this job: it reviews
   code through hooks, not designs, and has nothing to invoke. A built-in
@@ -124,18 +179,31 @@ tracking).
   executes it. Skip, and ask first, if the project looks intentionally
   doc-less, and record a skip as `doc_baseline_skipped` in `steps_completed`.
   Read `references/doc-baseline.md` for what the step must contain.
-- **Before presenting the plan for approval**: verify every file path,
-  function/service/table name, command, and factual claim the plan
-  references still matches the current codebase and system state — use a
-  dedicated auditing agent (e.g. a `spec-auditor`-style agent) if one is
-  configured in the environment, otherwise perform the check manually. The
-  audit's output is a short list of what was checked and how, including
-  whether `design.md` and `plan.md` (on the bounded path, the design alone) agree with each other and with the Seed;
-  present it with the plan. Fix or flag every finding before presenting —
-  don't silently drop one. Then
-  lead the presentation with a 3-5 sentence executive summary (what will change, why,
-  the main trade-off or risk) above the detailed plan, reflecting the
-  audit-corrected content, not the draft.
+- **Design and plan audit** (fires before a design or plan is presented for
+  approval): dispatch a separate reviewer subagent. Read
+  `references/reviewer-brief.md` and use its mode C. It runs at each approval
+  gate: on the bounded path at the design approval (Seed and design); on the
+  architectural path at the spec approval (design alone) and again at the
+  plan approval (design and plan). It checks that the Seed, the design and
+  the plan trace to each other (every acceptance criterion has a design
+  element and something that proves it), agree with each other and with the
+  current repo (every file path, function, table and command they name exists
+  as described), and that the plan is sound. The reviewer reads files, so
+  persist `design.md` (and `plan.md`) and record their `seed_hash` first (see
+  the redirect rule below). If the security gate above also fires, dispatch
+  both together; they are independent. If a reviewer subagent can't be
+  dispatched, do the audit yourself and say so.
+  - Handle findings per the "Controller handling" section of
+    `references/reviewer-brief.md`: fix or flag every Critical and Important
+    finding before presenting, a Seed gap goes to the human and blocks
+    presenting, and re-run mode C once after a Critical fix.
+  - Lead the presentation with a 3-5 sentence executive summary (what will
+    change, why, the main trade-off or risk). On a resumed turn, at most two
+    short status sentences may come before it; the summary comes before the
+    audit result and the list of fixes. Then give the audit (the
+    traceability table in brief, the severity counts, what you fixed or
+    flagged) and the detail. Everything reflects the audit-corrected content,
+    not the draft.
 - If the design depends on an unfamiliar library's runtime behavior (not
   just its documented API), name the highest-risk integration point in the
   design and make a real spike — install the dependency and run one real
@@ -148,17 +216,25 @@ tracking).
   without explicit human approval (design approval for bounded; spec approval
   then plan approval for architectural — two sequential approvals, not one).
   Call `ExitPlanMode` once that approval is granted, on **either** of those
-  paths — this returns
-  permission mode to `auto` and is what actually allows Phase 3's
+  paths — this returns to
+  the prior permission mode and is what actually allows Phase 3's
   worktree creation and file edits to proceed; without it, a bounded run
   stays stuck in plan mode, which blocks writes.
 - Redirect brainstorming's output to `design.md` and writing-plans's output to
   `plan.md`, both in the run directory, overriding each skill's own default
   doc-repo location (both skills' own conventions explicitly allow this
   override). Persist them under the same plan-mode write rule as `seed.yaml`
-  above. On the bounded path the approved in-chat design is also written to
-  `design.md`, so outside the Spike path `state.json` always points at a real
-  file.
+  above. Write the draft design to `design.md` and record its `seed_hash` in
+  `state.json` before dispatching the design and plan audit or the security
+  review, because the reviewers read the file. That includes the bounded
+  path's in-chat design: write it as a draft, and update the file if approval
+  changes it, so outside the Spike path `state.json` points at a real file once
+  these writes have gone through. If plan mode refuses a write (this can hit `seed.yaml`, `state.json`
+  and `plan.md` as well as `design.md`), pass the Seed, the design and the
+  plan inline to the reviewer instead; mode C then skips the hash comparison
+  and says so. Defer the `state.json` writes (`seed_hash`, `design_audit`) and
+  the files themselves until right after `ExitPlanMode`, as with `seed.yaml`;
+  until then `state.json` can lag the artifacts.
   Because nothing is written into the target repo, suppress brainstorming's own
   "commit the design document to git" instruction — there is nothing there to
   commit.
@@ -166,28 +242,19 @@ tracking).
 ## Phase 3 — Isolate & execute
 
 - If the target is a git repo: isolate a worktree for this task's branch
-  (via `superpowers:using-git-worktrees`), keeping the main tree clean. The
-  native `EnterWorktree` tool binds to the session's working directory, so if
-  the target repo isn't that directory, use `git worktree add` with a path
-  outside the repo instead. Tell `using-git-worktrees` in its dispatch
-  arguments which mechanism to use: its own guidance prefers the native tool
-  and calls the manual path a mistake, and the native tool also changes the
-  session's working directory. If
-  the target isn't a git repo at all, there's nothing to isolate — skip this
-  step; the artifact storage convention below already works independent of
-  git-repo status, so this doesn't block anything downstream.
-  `using-git-worktrees` asks for the human's consent only when no preference
-  is declared, works in place if the human declines, and does the same if the
-  sandbox denies creating a worktree.
-  In either case where no worktree gets created, treat isolation as skipped
-  and follow the `main`/`master` rule below. `using-git-worktrees` may also
-  add its worktree directory to `.gitignore` and commit that in the main tree,
-  and may run dependency installs. Stop and ask before that commit, or use a
-  worktree directory outside the repo, so nothing lands on the default branch.
-- **Model policy.** Implementation runs on Sonnet. `/fast` forces Opus
-  unless `disableFastMode` applies and silently breaks the `opusplan`
-  routing. The agent can't run or inspect `/fast`, so stop and ask the human to
-  confirm it is off before starting this phase.
+  (via `superpowers:using-git-worktrees`), keeping the main tree clean. Read
+  the "Worktree mechanics" section of `references/phase3-execution.md`
+  before creating it: it covers the native tool versus `git worktree add`,
+  the consent and sandbox fallbacks, and the `.gitignore` commit to avoid. If
+  the target isn't a git repo, skip isolation. Where no worktree gets
+  created, treat isolation as skipped and follow the `main`/`master` rule
+  below.
+- **Model policy.** Implementers run on `model: sonnet` (see Model policy;
+  Opus only if the human allows it for a task, see
+  `references/phase3-execution.md`). `/fast` (unless `disableFastMode`
+  applies) forces Opus and silently breaks the `opusplan` routing. The agent
+  can't run or inspect `/fast`, so stop and ask the human to confirm it is off
+  before starting this phase.
 - If Phase 2 named a real-library spike, run it now: after isolation and the
   `/fast` check, before implementation. If it fails, stop and return to
   Phase 2.
@@ -199,13 +266,11 @@ tracking).
   lists are disjoint. Read `references/phase3-execution.md` before dispatching:
   it has the parallel rules, what to do at SDD's Finish step, and how to
   dispatch the final review.
-- **Stop and ask** (see the standalone Stop and ask section — applies here
-  too). On scope expansion specifically, let brainstorming's own ratchet
-  decide whether the path upgrades (see Error handling) rather than
-  silently absorbing the extra work. Inside `subagent-driven-development`,
-  which would otherwise make a ruling and continue, treat scope expansion as a
-  stop condition for this pipeline while acting as its controller: stop and
-  ask.
+- **Stop and ask** (see the standalone Stop and ask section; it applies here
+  too). On scope expansion, let brainstorming's own ratchet decide whether the
+  path upgrades (see Error handling) rather than absorbing the extra work.
+  Inside `subagent-driven-development`, which would otherwise make a ruling
+  and continue, stop and ask as its controller.
 - Commit after every completed step — this overrides the harness's default
   "commit only when asked." A step is one plan item, one todo item, or one
   finished red→green→refactor cycle, not one file and not one edit:
@@ -231,16 +296,21 @@ tracking).
     if it doesn't.
   - "Don't commit"/"no commits" from the human suspends this for the rest of
     the session.
-- Apart from the `/fast` confirmation above, there is no gate beyond the routine green checks and the
-  stop-and-ask triggers — this phase introduces no other human approval
-  points.
+- Apart from the `/fast` confirmation above, there is no gate beyond the
+  routine green checks and the stop-and-ask triggers (which include a model
+  escalation and a failed spike).
 
 ## Phase 4 — Evaluate
 
-- **Model policy.** Dispatch review agents with `model: opus`. `ouroboros_qa`
-  picks its own model and is configured for Opus through
-  `~/.ouroboros/config.yaml`; confirm that file still holds both settings
-  before Phase 1's Seed QA. Read `references/phase4-qa.md` for the details.
+- **Model policy.** Verification is back on Opus (see Model policy). Run the
+  test-command gate (IDENTIFY/RUN/READ/VERIFY) through a fresh `model: opus`
+  subagent that returns the command, the raw output and its verdict, with the
+  worktree path from `state.json` (or the repo path), because the session's
+  working directory may not be the worktree; don't re-judge it on Sonnet.
+  Dispatch review agents on `model: opus` too. `ouroboros_qa` picks its own
+  model and is configured for Opus through `~/.ouroboros/config.yaml`; confirm
+  that file still holds both settings before Phase 1's Seed QA. Read
+  `references/phase4-qa.md` for the details.
 - **Always** run the project's real test command per
   `superpowers:verification-before-completion`'s IDENTIFY/RUN/READ/VERIFY
   gate — this is unconditional, not a fallback. Mechanical correctness (does
@@ -270,7 +340,8 @@ tracking).
   it on the repair diff, whatever SDD's review said. Read
   `references/reviewer-brief.md` and use its mode B: it names the diff scope
   and the aspects to pass (never `all` or `simplify`, because `code-simplifier`
-  edits code after tests and QA have run), and runs on `model: opus`. The
+  edits code after tests and QA have run), and runs on `model: opus` (best
+  effort for the agents `review-pr` itself launches). The
   `security-guidance` plugin also reviews the code on its own through hooks
   (on each turn and each commit), so there is nothing to invoke for it. Treat
   its findings like the review's Critical ones.
@@ -282,26 +353,27 @@ tracking).
   repair it in Phase 3. It is never a reason to revise the Seed.
 - Soft gate: a non-pass QA verdict (REVISE or FAIL) is reported as a new visible step,
   never auto-retried (Ralph is out of scope, and `ouroboros_qa` has no
-  `auto_evolve` parameter to chain into it regardless). The human may
+  `auto_evolve` parameter to chain into it regardless). Repeated verdicts just
+  resurface as new visible steps; the human can manually invoke
+  `ouroboros_ralph` or `ouroboros_lateral_think` for convergence looping, and
+  this skill never does so on its own. The human may
   explicitly accept a REVISE result and proceed; never accept one on their
   behalf. A difference that only names something Phase 5 owns (such as a
   missing README) is an expected difference, not a repair reason: note it and
   continue. If every remaining difference is of that kind, present the
   verdict to the human as REVISE with only Phase 5 differences and ask
   whether to accept it. Otherwise, classify which repair path applies before
-  doing anything else — see Seed versioning below:
+  doing anything else — see Seed versioning below, and the Model policy if
+  the call is ambiguous:
   - Implementation wrong, Seed still valid → normal repair, back to Phase 3, no
-    Seed change, no invalidation. Repair is targeted: one fix subagent or an
-    inline TDD cycle scoped to the finding. Don't re-invoke
+    Seed change, no invalidation. Repair is targeted: one fix subagent (on
+    `model: sonnet`) or an inline TDD cycle scoped to the finding. Don't re-invoke
     `subagent-driven-development` on the whole plan; it deletes its ledger at
     finish and would redispatch every task. Re-run Phase 4 on the result,
     including code review of the repair diff.
   - Seed wrong → this is a Seed revision. Apply the Seed-versioning invalidation
-    rule and return to Phase 2, not Phase 3.
-- Repeated below-threshold verdicts just keep resurfacing as new visible
-  steps; the human can manually invoke `ouroboros_ralph` or
-  `ouroboros_lateral_think` for convergence looping — this skill never does
-  so on its own.
+    rule: regenerate the Seed through Phase 1, then return to Phase 2, not
+    Phase 3.
 
 ## Phase 5 — Finish & push
 
@@ -321,7 +393,10 @@ Run these three steps in this order.
 2. `superpowers:verification-before-completion` — before saying anything is
    "done," "fixed," or "passing," this must have actually run and its output
    confirmed; never assert success from the per-step green checks in Phase 3
-   alone.
+   alone. Run it the way Phase 4 does, through a subagent on `model: opus`
+   (with the worktree path, or the repo path), since the main session is on Sonnet. It runs
+   again here, after Phase 4,
+   because the doc commits above changed the branch.
 3. `superpowers:finishing-a-development-branch`, last. Its options (merge
    locally, push and open a PR, or keep the branch; discard only if the human
    asks) are the human's choice, and
@@ -331,19 +406,10 @@ Run these three steps in this order.
    branch, name that explicitly and get confirmation. When finishing is
    done, set `state.json`'s `status` to `complete`.
 
-- Before step 1, so any newly established baseline gets swept into that
-  step's diff-and-commit rather than left uncommitted: on the architectural
-  path, if this is the first time a missing doc baseline surfaces, that
-  means Phase 2's doc-baseline check was skipped or missed — treat it as a
-  process gap worth flagging. On the bounded path, Phase 2 never runs that
-  check by design, so surfacing here is the intended path, not a gap.
-  Either way, establish the baseline here as the backstop — invoke
-  `docs-as-code-baseline` if it's present in the skill registry, otherwise
-  write it manually using the same evidence-backed scope (including the
-  ADR-location check) as in `references/doc-baseline.md` — unless Phase 2
-  recorded a deliberate skip (`doc_baseline_skipped` in `steps_completed`)
-  or the target isn't a git repo. On the bounded path, ask first if the
-  project looks intentionally doc-less (the same test as Phase 2).
+- Before step 1: if the target is a git repo with no doc baseline, establish
+  it as the backstop unless Phase 2 recorded `doc_baseline_skipped`. Read the
+  "Phase 5 backstop" section of `references/doc-baseline.md` for when to flag
+  a process gap, when to ask first, and how.
 - Hard gate: PR creation and pushing both stay manual, confirm-first steps.
 - Project documentation (README, ADRs, docs-as-code baseline content) is
   untouched until this phase's doc-sync check — never earlier, unless the
@@ -360,25 +426,27 @@ Run these three steps in this order.
   Seed as context, and require a fresh design/plan approval before Phase 3
   resumes or continues. Never silently carry a stale spec or plan forward.
 - Identify a Seed version by its `seed_hash`: the SHA-256 of the exact bytes
-  of `seed.yaml` as persisted (for example `sha256sum seed.yaml`, or
-  `Get-FileHash -Algorithm SHA256 seed.yaml` in PowerShell 7; that can fail
-  from a Git Bash-launched PowerShell 5.1). Record the `seed_hash` each
+  of `seed.yaml` as persisted (commands in `references/run-lifecycle.md`). Record the `seed_hash` each
   `design.md` and
   `plan.md` was built against in `state.json`. Check staleness by recomputing
   the hash of the current `seed.yaml` and comparing; a mismatch means the
   spec or plan is stale. Any byte change, including whitespace, counts as a
-  revision. That errs toward re-approval, which is the safe direction. This
-  pipeline relies only on `seed_hash`. Ouroboros's `seed` skill writes its own
-  revision notes during an opted-in refinement pass, but this skill never
-  reads them.
+  revision; details are in `references/run-lifecycle.md`.
+- A Seed is revised after Phase 1 by returning to Phase 1 and regenerating
+  it, with the human's agreement. That re-runs Phase 0 step 4 first, because
+  the interview and Seed tools are needed again, then the Phase 1 steps, then
+  Phase 2 as above. The opt-in refinement pass is only a response to Seed QA
+  at the Phase 1→2 transition: it depends on that QA session and its
+  suggestions, which a resume loses. Never hand-edit the Seed outside that
+  pass.
 
 ## State tracking
 
 - `state.json` is the authoritative phase pointer. The todo list, when a todo
   tool exists, mirrors it, and if the two disagree `state.json` wins. If no
   todo tool is available, skip the list.
-- Create one todo entry per phase 1–5, the moment Phase 0 classifies a
-  request as in-scope. Prefix every entry `[dev-workflow]` and end it with the run directory's name,
+- Create one todo entry per phase 1–5 at Phase 0 step 5, once the preflight
+  has passed. Prefix every entry `[dev-workflow]` and end it with the run directory's name,
   so this skill's own
   state is distinguishable from unrelated todos in the same session (e.g. a
   `subagent-driven-development` list from different work).
@@ -395,6 +463,11 @@ Run these three steps in this order.
   `state.json`. Several: ask the human which. None: this is a fresh Phase 0
   classification. Never restart a run that has a resumable run directory
   without asking.
+- When you resume a run, run Phase 0 steps 3–4 before recreating the todo
+  list, so a missing tool stops the resume before anything is rewritten. Tool
+  schemas can unload between turns, so also reload the Ouroboros tool you are
+  about to call with ToolSearch instead of assuming Phase 0's load still
+  holds.
 - When entering Phase 1 or 2 by any route (a resume, or a return from a later
   phase: a failed spike, a wrong Seed, a Seed revision), call `EnterPlanMode`
   before continuing if the session isn't already in plan mode. Plan mode
@@ -402,10 +475,15 @@ Run these three steps in this order.
 - The todo list is a phase pointer only, never a state container — correct
   resumption also requires the durably-stored artifacts below.
 - `state.json` write points:
-  - Create it in Phase 0 with phase 0 and `status` `in_progress`.
+  - Create it at Phase 0 step 5 with phase 0 and `status` `in_progress`.
   - Update `phase` at every phase transition.
+  - Record `path` (`bounded`, `architectural` or `spike`) as soon as
+    brainstorming classifies the work. A resumed Phase 2 needs it, together
+    with `design_drafted` and `design_approved`, to know which approval gate
+    comes next.
   - Append to `steps_completed` as each step finishes (for example
-    `seed_generated`, `seed_qa: REVISE`, `plan_approved`, `qa_on_diff`), so a
+    `seed_generated`, `seed_qa: REVISE`, `design_drafted`, `design_audit`,
+    `design_approved`, `plan_approved`, `qa_on_diff`), so a
     resumed run knows what already ran.
   - Store paths as full forward-slash paths that both your shell and git
     accept, never 8.3 short names.
@@ -427,16 +505,13 @@ Run these three steps in this order.
   (`~/.claude/skills/development-workflow/`), not nested inside it — that
   directory is skill *definition*, scanned and synced by the harness, and must
   not accumulate unbounded per-run mutable state.
-- Phase 0 creates this run directory the moment it classifies a request as
-  in-scope. Derive `<repo-slug>` from the target directory's git remote (as
+- Derive `<repo-slug>` from the target directory's git remote (as
   `owner-repo`, so two organizations' repos of the same name don't collide).
   Without a remote, use the folder name of the git repo's main working tree
   (not a linked worktree or subdirectory), or the working directory's
   basename outside a repo, or
   `no-repo` if even that isn't meaningful. This fallback keeps the pipeline
-  working outside a git repo entirely. If a run directory with the same slug
-  and date already exists and isn't the run being resumed, append `-2`, `-3`,
-  and so on to `<task-slug>`.
+  working outside a git repo entirely.
 - Four files live in the run directory (plus an optional `spike/` folder, see
   Phase 2):
   - `seed.yaml` — the current Seed, persisted the moment Phase 1 produces or
@@ -451,16 +526,13 @@ Run these three steps in this order.
   - `plan.md` — writing-plans's output, redirected here instead of its default
     `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md` location, since it is a
     pre-validation working artifact, not project documentation.
-- One exception: `subagent-driven-development` keeps a git-ignored workspace at
-  `<repo-root>/.superpowers/sdd/<plan-name>/` inside the target repo. Read
-  `references/phase3-execution.md` for its naming and cleanup; use the path its script prints.
-  don't assume it.
-- This doesn't compete with Ouroboros's own default worktree root
-  (`~/.ouroboros/worktrees/`) — `state.json` just records whichever worktree
-  Phase 3 actually used (via `superpowers:using-git-worktrees`), when one exists.
-- Because these artifacts live outside the repo, they are unaffected by which
-  worktree is checked out and work identically whether or not the target
-  directory is a git repo at all.
+- One exception: `subagent-driven-development` keeps a git-ignored workspace
+  inside the target repo; `references/phase3-execution.md` has its path and
+  cleanup, and its script prints the real path, so don't assume it.
+- Read `references/run-lifecycle.md` when creating the run directory: it
+  covers same-slug collisions, how these artifacts relate to worktrees and to
+  Ouroboros's own worktree root, and non-git targets.
+
 
 ## Stop and ask
 
@@ -471,49 +543,32 @@ any phase:
   push, deleting branches).
 - If requirements seem to conflict with security or SOLID principles.
 - If the scope of a task expands unexpectedly mid-implementation.
+- If a task needs a model escalation that `subagent-driven-development` would
+  make on its own (see `references/phase3-execution.md`): ask before allowing
+  Opus.
 
 ## Documentation lookups (Context7)
 
-- Always use Context7 (`mcp__plugin_context7_context7__resolve-library-id` +
-  `mcp__plugin_context7_context7__query-docs`) during Phase 2
-  design or Phase 3 implementation when a library, framework, SDK, API, or
-  CLI tool is involved — even well-known ones. Never rely on trained
-  knowledge alone; training data may not reflect recent API changes,
-  version migrations, or deprecations.
-- Use for: API syntax, configuration options, version migration guides,
-  setup instructions, CLI usage, library-specific debugging. Not needed for:
-  general programming concepts, refactoring, business logic, or code review.
+When a library, framework, SDK, API, or CLI tool is involved in Phase 2 design
+or Phase 3 implementation, look it up with Context7
+(`mcp__plugin_context7_context7__resolve-library-id` +
+`mcp__plugin_context7_context7__query-docs`), even well-known ones. Never rely
+on trained knowledge alone. `references/engineering-defaults.md` says what to
+use it for.
 
 ## Language & stack defaults
 
-- Primary language: C# / .NET (latest LTS) for new/greenfield work in
-  Phase 3, unless the target project specifies otherwise.
-- Frontend: React/TypeScript for new/greenfield UI work. For an existing
-  project, match whatever's already there instead (Angular, Vue, etc.) —
-  check the repo (`package.json`, `*.csproj`, existing components) before
-  assuming greenfield applies.
-- Default test framework: TUnit (.NET) and Jest (React) for new/greenfield
-  work. An existing project's tests follow whatever test convention that
-  project already uses, not this default.
-- These are defaults for new/greenfield work only — always defer to what the
-  target project's own conventions or existing codebase specifies. If the
-  human's own instructions (their `CLAUDE.md`) name a different stack than
-  the above, say so during Phase 2 and ask; don't silently pick one. This
-  section copies the human's global defaults so the skill stays
-  self-contained, which means it drifts when those change. Re-check it
-  against their `CLAUDE.md` whenever that file's stack section changes.
+Defaults apply to new/greenfield work only: C# / .NET, React/TypeScript, TUnit
+and Jest. An existing project's own conventions win. If the human's own
+instructions (their `CLAUDE.md`) name a different stack, say so during Phase 2
+and ask; don't silently pick one. Read `references/engineering-defaults.md` for
+the full list, and also when the human asks about the stack in Phases 0–1.
 
 ## Error handling / edge cases
 
-- **QA verdict below threshold:** report findings, stop, and classify which
-  of the two repair paths under Seed versioning applies (implementation
-  wrong vs. Seed wrong) before proceeding — never assume it's an
-  implementation-only fix. Treat next step as a new visible planning step
-  (not hidden auto-retry). Since Ralph is out of scope (and `ouroboros_qa`
-  has no `auto_evolve` behavior to chain into it regardless), repeated
-  below-threshold verdicts just keep surfacing each time — the user can
-  manually invoke `ouroboros_ralph` or `ouroboros_lateral_think` if they
-  want convergence looping.
+- **QA verdict below threshold:** handled in Phase 4's soft gate, including
+  the choice between the two repair paths and why a failing verdict is never
+  auto-retried. Never assume it's an implementation-only fix.
 - **Mid-pipeline scope upgrade:** brainstorming's own ratchet ("hidden
   complexity upgrades the path, never downgrades") already handles a bounded
   task turning out to need the architectural path. The skill doesn't fight

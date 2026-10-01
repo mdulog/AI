@@ -21,6 +21,6 @@ Loaded from `SKILL.md` (Phase 1→2 transition). Section names below refer to se
   belong in this pipeline. Never run the pass, or chain another, without an
   explicit yes, and never hand-edit the Seed YAML outside that opted-in pass.
   After the pass, re-persist `seed.yaml`; its hash changes, so apply the Seed
-  versioning rule below. The pass may load tools this skill otherwise doesn't
+  versioning rule in `SKILL.md`. The pass may load tools this skill otherwise doesn't
   branch into (see Non-goals). That is Ouroboros's own opt-in behavior, not
   this skill's.

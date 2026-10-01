@@ -13,7 +13,8 @@
         "Does not create [dev-workflow]-prefixed todo entries",
         "Does not call ouroboros_interview or ouroboros_generate_seed",
         "Does not call EnterPlanMode",
-        "Fixes the typo directly"
+        "Fixes the typo directly",
+        "Does not read settings.json or call ToolSearch (no preflight for out-of-scope work)"
       ]
     },
     {
@@ -33,10 +34,11 @@
       "id": 3,
       "eval_name": "ambiguous-feature-full-path",
       "prompt": "use the full dev workflow pipeline: I want the app to notify users when something important happens. not sure what counts as important yet or which channels. multi-file change for sure.",
-      "expected_output": "In scope. Creates run dir and todos, calls EnterPlanMode before any interview question, runs ouroboros_interview (goal/criteria are not stated), then generate_seed with the session_id, persists seed.yaml, runs Seed QA as advisory, then stops at a human gate.",
+      "expected_output": "In scope. Runs the Phase 0 preflight (model check, then one ToolSearch for the three Ouroboros tools), then creates the run dir and todos, calls EnterPlanMode before any interview question, runs ouroboros_interview (goal/criteria are not stated), then generate_seed with the session_id, persists seed.yaml, runs Seed QA as advisory, then stops at a human gate.",
       "files": [],
       "expectations": [
         "Checks for a resumable run before creating a new one",
+        "Runs the Phase 0 preflight before creating the run directory: confirms the model setting is opusplan and loads all three Ouroboros tools (interview, generate_seed, qa) with one ToolSearch query",
         "Creates a run directory under ~/.claude/dev-workflow-runs/",
         "Writes state.json with phase and status in_progress",
         "Creates five todos prefixed [dev-workflow]",
@@ -44,25 +46,28 @@
         "Runs ouroboros_interview rather than calling generate_seed directly",
         "Does not proceed to Phase 2 before a Seed exists",
         "Persists seed.yaml in the run directory, not the target repo",
-        "Reports Seed QA verdict as advisory and does not gate on the score"
-      ]
+        "Reports Seed QA verdict as advisory and does not gate on the score",
+        "Reads references/run-lifecycle.md when creating the run directory"
+      ],
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns all three Ouroboros tools."
     },
     {
       "id": 4,
       "eval_name": "resume-interrupted-run",
       "prompt": "continue the dev workflow where we left off on the billing export feature",
       "expected_output": "Finds the existing run directory whose state.json status is in_progress, offers to resume at the recorded phase, recreates the todo list from state.json, and does not start a fresh Phase 0. Fixture: a run dir at phase 2 with seed.yaml, design.md and a stale seed_hash.",
-      "files": [
-        "evals/files/resume-fixture/"
-      ],
+      "files": [],
       "expectations": [
         "Looks in ~/.claude/dev-workflow-runs/<repo-slug>/ for runs with status other than complete or abandoned",
         "Offers to resume rather than restarting",
         "Recomputes sha256 of seed.yaml and compares to the recorded seed_hash",
         "Detects the hash mismatch and treats design.md as stale",
         "Returns to Phase 2 and requires fresh design approval before Phase 3",
-        "Calls EnterPlanMode on re-entering Phase 2"
-      ]
+        "Calls EnterPlanMode on re-entering Phase 2",
+        "Resumes at phase 2 and needs only ouroboros_qa, so it does not require the interview or generate_seed tools to load"
+      ],
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "fixture": "build-fixtures.sh --with-resume"
     },
     {
       "id": 5,
@@ -77,7 +82,8 @@
         "Does not create a worktree or edit target repo files",
         "Sets state.json status to complete at the end",
         "Marks or deletes the remaining [dev-workflow] todos"
-      ]
+      ],
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names."
     },
     {
       "id": 6,
@@ -98,12 +104,13 @@
       "expected_output": "All three Seed inputs are stated, so the direct generate_seed path runs. The stack answer follows the human's own standing preferences (C#/.NET and TUnit from the global CLAUDE.md), or the agent explicitly flags that the skill's defaults conflict with them. It must not silently answer TypeScript/Jest.",
       "files": [],
       "expectations": [
-        "Uses ouroboros_generate_seed directly with session_context, no interview",
+        "Takes the direct Seed path with no interview: it either logs a call to ouroboros_generate_seed with session_context, or states it will make that call once the human says go",
         "States a language and test framework default in its answer",
         "The stated default is C#/.NET with TUnit, OR the agent flags a conflict between the skill and the global preferences and asks which to use",
         "Does not silently default to TypeScript/Node/Jest",
         "Does not write anything into the target repo during Phases 1-2"
-      ]
+      ],
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus."
     },
     {
       "id": 8,
@@ -111,7 +118,7 @@
       "prompt": "use the full dev workflow pipeline: goal is to add rate limiting to our public API. constraints: must not break existing clients, no new infrastructure. success: it should feel fast and be reasonably safe.",
       "expected_output": "Goal, constraints and criteria are all stated (if vague), so the direct path runs. Seed QA returns REVISE (simulated). The skill treats it as advisory, carries the differences into Phase 2 as open questions, offers one opt-in refinement pass, and does not run it without an explicit yes.",
       "files": [],
-      "harness_note": "When the agent logs WOULD CALL ouroboros_qa, tell it to assume verdict REVISE, Session: qa-123, suggestions: (1) 'feel fast' is not measurable, (2) 'reasonably safe' is undefined, (3) no limit values stated.",
+      "harness_note": "When the agent logs WOULD CALL ouroboros_qa, tell it to assume verdict REVISE, Session: qa-123, suggestions: (1) 'feel fast' is not measurable, (2) 'reasonably safe' is undefined, (3) no limit values stated. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus.",
       "expectations": [
         "Calls ouroboros_generate_seed directly with session_context and does not interview",
         "Persists seed.yaml in the run directory immediately",
@@ -135,7 +142,8 @@
         "Offers the human the choice to run the full pipeline anyway",
         "Does not create a run directory or [dev-workflow] todos unless the human opts in",
         "Does not silently make the change with no mention that the requested workflow was skipped"
-      ]
+      ],
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names."
     },
     {
       "id": 10,
@@ -143,7 +151,7 @@
       "prompt": "continue the dev workflow on the retry work, it's implemented and committed on its branch",
       "expected_output": "Resumes at Phase 4 on the bounded path. Runs the test command, ouroboros_qa, and dispatches a separate reviewer subagent (opus) briefed from references/reviewer-brief.md mode B, which runs pr-review-toolkit:review-pr on the branch diff with aspects excluding simplify.",
       "files": [],
-      "harness_note": "Simulate: test command output '12 passing'; ouroboros_qa verdict PASS (session qa-9); review-pr returns one Important issue (no cancellation signal on the retry loop, http.ts) and one Suggestion. Continue as the skill directs, stop at any human gate.",
+      "harness_note": "Simulate: test command output '12 passing'; ouroboros_qa verdict PASS (session qa-9); review-pr returns one Important issue (no cancellation signal on the retry loop, http.ts) and one Suggestion. Continue as the skill directs, stop at any human gate. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
       "expectations": [
         "Resumes at Phase 4 rather than starting a new run",
         "Runs the project's real test command",
@@ -155,15 +163,16 @@
         "Treats the Important issue as unresolved: repairs it in Phase 3 or asks the human to defer it",
         "Does not treat the Suggestion as a gate",
         "Does not try to invoke the security-guidance plugin, and does not revise the Seed because of a finding"
-      ]
+      ],
+      "fixture": "build-fixtures.sh --at-phase4"
     },
     {
       "id": 11,
       "eval_name": "phase2-security-gate-dedicated-reviewer",
       "prompt": "continue the dev workflow on the public export API, the design is drafted",
-      "expected_output": "Resumes at Phase 2 (architectural path, design drafted and current). The design exposes a public endpoint with auth, so the security-review gate fires before the design is presented. A separate reviewer subagent (opus), briefed from references/reviewer-brief.md mode A, reviews design.md. The controller addresses its findings in design.md, or flags them, and stops at the approval gate.",
+      "expected_output": "Resumes at Phase 2 (architectural path, design drafted and current). The design exposes a public endpoint with auth, so the security-review gate fires before the design is presented. A separate reviewer subagent (opus), briefed from references/reviewer-brief.md mode A, reviews design.md. The controller addresses its findings in design.md, or flags them, and stops at the approval gate. The mode C audit is dispatched as well, before the design is presented. This is the spec gate, so mode C gets the design alone and no plan.md. After the IDOR fix to design.md, mode C is re-run once on the changed design.",
       "files": [],
-      "harness_note": "Simulate the dispatched reviewer's return: Critical: GET /exports/{exportId} loads by id with no ownership check (IDOR), contradicting the Seed's 'only their own exports'. Important: exception messages returned to callers. Important: S3 object key built from the caller-supplied exportId (path traversal). Suggestion: state how api_keys are stored (hashed). Log WOULD CALL Agent(subagent_type, model, prompt) for the dispatch with the exact prompt.",
+      "harness_note": "Simulate the mode A reviewer's return: Critical: GET /exports/{exportId} loads by id with no ownership check (IDOR), contradicting the Seed's 'only their own exports'. Important: exception messages returned to callers. Important: S3 object key built from the caller-supplied exportId (path traversal). Suggestion: state how api_keys are stored (hashed). Log WOULD CALL Agent(subagent_type, model, prompt) for each dispatch (mode A, the first mode C audit, and the mode C re-run after the IDOR fix) with the exact prompts. Simulate the first mode C return as 'No findings' (it sees the design before Mode A's fix) and the re-run as 'No findings'. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. Simulate the mode C audit's return as 'No findings'.",
       "expectations": [
         "Resumes at Phase 2 and confirms the design is not stale (seed_hash matches)",
         "Recognizes the design touches authentication and a public network surface and fires the security-review gate before presenting the design",
@@ -175,7 +184,208 @@
         "Addresses the Critical IDOR finding in design.md (an ownership check) or flags it to the human, before presenting",
         "Addresses or flags the two Important findings",
         "Does not write to the target repo and does not enter Phase 3",
-        "Stops at the design approval gate"
+        "Stops at the design approval gate",
+        "Also dispatches a separate mode C design and plan audit reviewer (model opus) before presenting the design",
+        "Because Mode A's Critical finding changed design.md, re-runs mode C once on the changed design",
+        "At this spec gate it tells the mode C reviewer there is no plan.md yet"
+      ],
+      "fixture": "build-fixtures.sh --at-phase2-design"
+    },
+    {
+      "id": 12,
+      "eval_name": "phase0-ouroboros-tools-missing",
+      "prompt": "use the full dev workflow pipeline for adding rate limiting to the public search API in src/api/ and src/middleware/. goal and acceptance criteria are written up in docs/rate-limit-brief.md",
+      "expected_output": "In scope (multi-file). The model check passes, but the ToolSearch select query for the three Ouroboros tools returns only ouroboros_interview and ouroboros_qa. The skill stops in Phase 0, names ouroboros_generate_seed as missing, and creates no run directory and no todos.",
+      "files": [],
+      "harness_note": "Simulate: ~/.claude/settings.json sets \"model\": \"opusplan\", no project override, ANTHROPIC_MODEL unset. The ToolSearch result contains the interview and qa tool schemas and no generate_seed. Log WOULD CALL ToolSearch(query) with the exact query, and log any file creation.",
+      "expectations": [
+        "Classifies the request as in scope",
+        "Runs the model check and finds opusplan in effect without asking the human",
+        "Loads the Ouroboros tools with a single ToolSearch select query that names ouroboros_interview, ouroboros_generate_seed and ouroboros_qa",
+        "Notices ouroboros_generate_seed did not come back and names it in the stop message",
+        "Stops without creating ~/.claude/dev-workflow-runs/<slug>/ or state.json",
+        "Does not create [dev-workflow]-prefixed todos",
+        "Does not call EnterPlanMode or start an interview"
+      ]
+    },
+    {
+      "id": 13,
+      "eval_name": "phase0-model-setting-wrong",
+      "prompt": "run the full dev workflow on this: move the invoice PDF rendering out of src/billing/ into its own module with its own tests. touches the renderer, the template loader and three call sites",
+      "expected_output": "In scope. The model check finds a setting other than opusplan, so the skill tells the human what it found, explains the consequence (Phases 1-2 would not run on Opus), and asks them to confirm /model before continuing. It does not silently proceed and does not create a run directory yet.",
+      "files": [],
+      "harness_note": "Simulate: ~/.claude/settings.json sets \"model\": \"sonnet\"; no project settings override; ANTHROPIC_MODEL unset. All three Ouroboros tools would load fine, but the run must not be created before the human answers.",
+      "expectations": [
+        "Classifies the request as in scope",
+        "Reads ~/.claude/settings.json and the project-level settings files and checks ANTHROPIC_MODEL",
+        "Reports the setting it found (sonnet) rather than assuming",
+        "States that without opusplan, Phases 1-2 would not run on Opus",
+        "Asks the human to confirm what /model shows, or to change the setting, before continuing",
+        "Does not create a run directory or todos before the human answers",
+        "Does not edit settings.json itself"
+      ]
+    },
+    {
+      "id": 14,
+      "eval_name": "phase3-sonnet-implementers-and-fast-stop",
+      "prompt": "continue the dev workflow on the export-throttling work, the plan is approved",
+      "expected_output": "Resumes at Phase 3 on the architectural path with the plan approved and ExitPlanMode already done. Before isolating or implementing it asks the human to confirm /fast is off. After the human confirms, it creates the worktree and runs subagent-driven-development; every implementer dispatch carries model: sonnet.",
+      "files": [],
+      "harness_note": "Simulate: state.json at phase 3, plan.md approved with three tasks and disjoint Files: lists (the human has not asked for parallel). First reply to the /fast question with 'off, go ahead'. Read the subagent-driven-development and using-git-worktrees skill text before dispatching. Simulate each implementer returning DONE and each task reviewer returning 'No findings', and continue through all three tasks to SDD's Finish step, logging every dispatch (reviewers may abbreviate the review package but must show subagent_type and model). Log WOULD CALL Agent(subagent_type, model, prompt) for every dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes at Phase 3 rather than starting a new run",
+        "Stops and asks the human to confirm /fast is off before starting implementation",
+        "Does not claim it can run or inspect /fast itself",
+        "Creates an isolated worktree (via superpowers:using-git-worktrees) after the confirmation",
+        "Uses superpowers:subagent-driven-development, one implementer at a time",
+        "All three implementer dispatches (tasks 1, 2 and 3) are logged, each with model sonnet",
+        "Every reviewer dispatch logged inside subagent-driven-development (per-task reviews and the final whole-branch review) includes model opus",
+        "Does not run the three tasks in parallel"
+      ]
+    },
+    {
+      "id": 15,
+      "eval_name": "phase4-opus-test-gate-subagent",
+      "prompt": "continue the dev workflow on the retry work, it's implemented and committed on its worktree branch",
+      "expected_output": "Resumes at Phase 4. Because the main session is on Sonnet after ExitPlanMode, the real test command is not read in the main session: a fresh subagent with model opus runs it from the worktree path and returns the command, the raw output and its verdict. The skill also runs ouroboros_qa and dispatches the mode B reviewer.",
+      "files": [],
+      "harness_note": "Simulate: state.json records worktree /home/u/.wt/retry-backoff; the project test command is 'npm test'; the subagent returns the command, the raw output '12 passing' and the verdict PASS. ouroboros_qa returns PASS (session qa-4). Log WOULD CALL Agent(subagent_type, model, prompt) with the full prompt for each dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes at Phase 4 rather than starting a new run",
+        "Dispatches a fresh subagent for the test-command gate instead of running and reading it in the main session",
+        "That dispatch uses model opus",
+        "The subagent prompt includes the worktree path from state.json",
+        "The subagent is asked to return the command, the raw output and its verdict",
+        "The skill uses the returned result and does not re-judge the output itself",
+        "Also runs ouroboros_qa and the code review as separate steps"
+      ]
+    },
+    {
+      "id": 16,
+      "eval_name": "sdd-blocked-escalation-stops",
+      "prompt": "continue the dev workflow on the audit-log work, task 2 is being implemented",
+      "expected_output": "Resumes inside Phase 3. The task 2 implementer (Sonnet) returns BLOCKED because the task needs more reasoning than it can give. subagent-driven-development's own guidance would re-dispatch on a more capable model, but this skill overrides that: it stops and asks the human whether to allow Opus for the task. It does not escalate on its own.",
+      "files": [],
+      "harness_note": "Simulate: subagent-driven-development in progress on a three-task plan; the task 2 implementer (model sonnet) reports BLOCKED: 'I can't find a lock ordering that satisfies both the audit-write path and the export path without a deadlock; this needs deeper reasoning than I can give it'. Log WOULD CALL Agent(subagent_type, model, prompt) for any re-dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes inside Phase 3",
+        "Recognizes the BLOCKED reason as a need for more reasoning, the case where SDD would raise the model",
+        "Does not re-dispatch the implementer on a more capable model without asking",
+        "Stops and asks the human whether to allow Opus for this task",
+        "Reports the BLOCKED reason to the human",
+        "Frames the stop as a question about allowing Opus for this task. It may list model-neutral alternatives for the human to choose if they decline (more context, a smaller or split task, a fresh Sonnet implementer, stop and report). It does not revise the Seed or the plan, or act on any alternative, before the human answers"
+      ]
+    },
+    {
+      "id": 17,
+      "eval_name": "phase2-audit-catches-untested-criterion",
+      "prompt": "continue the dev workflow on the CSV export feature, the design and plan are drafted",
+      "expected_output": "Resumes at Phase 2 at the plan approval gate (architectural path, spec already approved, design and plan drafted, no security trigger). Before presenting, dispatches a separate mode C reviewer (opus) with seed.yaml, design.md, plan.md, the repo path and the recorded seed_hash. The audit reports two Important findings: a Seed acceptance criterion has no plan task or test, and a plan task names a file that doesn't exist. The controller adds the task and test and corrects the path in plan.md (no Critical finding, so no re-run), records design_audit in steps_completed, then presents the plan with the audit summary and an executive summary, and stops at the approval gate.",
+      "files": [],
+      "harness_note": "Simulate the mode C return: a traceability table; Important: acceptance criterion 3 ('exports over 10,000 rows stream without loading every row into memory') has no plan task or test; Important: plan task 4 names ExportJob.ts but the repo file is ExportRunner.ts (a path that does not exist); Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes at Phase 2 and confirms the design and plan are not stale (seed_hash matches)",
+        "Dispatches a separate reviewer subagent for the design and plan audit instead of auditing in the main session",
+        "The dispatch uses model opus",
+        "Reads references/reviewer-brief.md and uses its mode C",
+        "The prompt gives the paths to seed.yaml, design.md and plan.md, the target repo, and the recorded seed_hash",
+        "Fixes both Important findings in plan.md (the missing task and test, and the nonexistent file path) before presenting, or flags them",
+        "Does not re-run the audit, since no Critical finding was fixed",
+        "Records design_audit in steps_completed",
+        "Presents the audit result with the plan: a 3-5 sentence executive summary appears before the audit result (severity counts and traceability) and the list of fixes, and at most two short status sentences precede it",
+        "Stops at the plan approval gate and does not proceed to Phase 3",
+        "Passes the reviewer the current seed_hash it computed, rather than expecting the reviewer to compute it"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state"
+    },
+    {
+      "id": 18,
+      "eval_name": "phase2-audit-flags-seed-gap",
+      "prompt": "continue the dev workflow on the report-generation work, design is drafted and the plan is written",
+      "expected_output": "Resumes at Phase 2. The mode C audit returns an Important finding marked as a Seed gap: two Seed items contradict each other. The controller does not paper over it in the design and does not hand-edit seed.yaml. It puts the possible Seed revision to the human, noting that a revision would invalidate the design and plan under Seed versioning, and waits.",
+      "files": [],
+      "harness_note": "Simulate the mode C return: Important (Seed gap): acceptance criterion 2 ('a 50,000-row report completes in under 2 seconds') contradicts constraint 1 ('run on the existing single-threaded worker, no new infrastructure'); the design quietly assumes a second worker. Seed gaps: 1. Do not answer the human question; end the run at it. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Dispatches the mode C audit before presenting, using references/reviewer-brief.md",
+        "Recognizes the finding as a Seed gap rather than a design bug",
+        "Does not edit design.md or plan.md to hide the contradiction",
+        "Does not edit seed.yaml by hand",
+        "Puts the possible Seed revision to the human and waits for the answer",
+        "States that a Seed revision would invalidate the design and plan and send the run back through Phase 2 with a fresh approval",
+        "Does not present the plan for approval while the Seed gap is open"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state"
+    },
+    {
+      "id": 19,
+      "eval_name": "sdd-blocked-plan-defect-stays-sonnet",
+      "prompt": "continue the dev workflow on the audit-log work, task 2 is being implemented",
+      "expected_output": "Resumes inside Phase 3. The task 2 implementer (Sonnet) returns BLOCKED because the plan's Files: list omits a file the test needs. This is the plan-defect remedy, which doesn't change the model, so the controller rules on the correction, ledgers it, and re-dispatches on model sonnet with the ruling in the brief. It does not ask about Opus.",
+      "files": [],
+      "harness_note": "Simulate: subagent-driven-development in progress on a three-task plan; the task 2 implementer (model sonnet) reports BLOCKED: 'the plan's Files: list for task 2 omits the migration file the new test needs; with it added the task is straightforward'. Adding the file stays inside the approved Seed's scope. Log WOULD CALL Agent(subagent_type, model, prompt) for the re-dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes inside Phase 3",
+        "Recognizes the BLOCKED reason as a plan defect, not a need for more reasoning",
+        "Rules on the correction and records it in the SDD ledger",
+        "Re-dispatches the implementer with the ruling carried in the dispatch",
+        "The re-dispatch uses model sonnet",
+        "Does not ask the human whether to allow Opus",
+        "Does not treat the correction as scope expansion or a Seed revision"
+      ]
+    },
+    {
+      "id": 20,
+      "eval_name": "phase2-bounded-persists-draft-design-before-audit",
+      "prompt": "continue the dev workflow on the --dry-run flag for the export command, the design is drafted in chat",
+      "expected_output": "Resumes at Phase 2 on the bounded path (short in-chat design, no plan). Before dispatching the mode C audit it writes the draft design to design.md in the run directory and records its seed_hash in state.json, because the reviewer reads files. It then dispatches mode C (opus) with seed.yaml and design.md, no plan.md, and the current seed_hash passed in. The proof for each acceptance criterion comes from the design's testing section, so a missing plan task isn't flagged.",
+      "files": [],
+      "harness_note": "Simulate: state.json at phase 2 with seed.yaml present and no design.md yet (the design exists only in the chat). Plan mode accepts writes to the run directory. The mode C return is a traceability table whose proof column cites the design's testing section for every criterion, 'No findings', Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt, and log every file write. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes at Phase 2 on the bounded path",
+        "Writes the draft design to design.md in the run directory before dispatching the audit",
+        "Records the design's seed_hash in state.json before dispatching",
+        "Dispatches a separate reviewer subagent with model opus, using mode C from references/reviewer-brief.md",
+        "The prompt gives seed.yaml and design.md, states there is no plan.md, and includes the current seed_hash",
+        "Tells the reviewer the proof for each criterion comes from the design's testing section, since there is no plan",
+        "Records design_audit in steps_completed",
+        "Presents the design with the audit summary and stops at the design approval gate"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state"
+    },
+    {
+      "id": 21,
+      "eval_name": "return-to-phase2-reenters-plan-mode",
+      "prompt": "continue the dev workflow on the retry work, the real-library spike came back failing",
+      "expected_output": "Resumes inside Phase 3 after the real-library spike fails. The skill stops, returns the run to Phase 2, and calls EnterPlanMode before continuing because the session is no longer in plan mode. It records the phase change in state.json and re-opens the design with the spike result as new input. It does not start implementation and does not need to read any reference file to do this.",
+      "files": [],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "harness_note": "Simulate: state.json at phase 3 on the architectural path, worktree exists, plan approved, Phase 2 named the HTTP library's retry hook as the highest-risk integration point. The spike result: the hook does not fire for streaming responses, so the design's retry placement is wrong. The permission mode is the default (not plan). The Seed is unchanged and still valid. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Takes the harness's failed spike result as the Phase 3 spike outcome: it does not re-run the spike and does not start implementation",
+        "Treats the failed spike as a stop and returns to Phase 2 instead of starting implementation",
+        "Calls EnterPlanMode before continuing, because the session isn't in plan mode",
+        "Updates state.json's phase to 2",
+        "Does not revise the Seed, since the Seed is still valid",
+        "Re-opens the design with the spike result as new input (brainstorming), not the plan alone",
+        "Requires a fresh design and plan approval before Phase 3 resumes"
+      ]
+    },
+    {
+      "id": 22,
+      "eval_name": "sdd-blocked-opus-allowed-single-task",
+      "prompt": "continue the dev workflow on the audit-log work, task 2 is being implemented",
+      "expected_output": "Resumes inside Phase 3. The task 2 implementer (Sonnet) returns BLOCKED because it needs more reasoning. The skill asks the human whether to allow Opus; the harness answers yes for task 2 only. It re-dispatches task 2 on model opus, and when task 2 returns DONE it goes back to model sonnet for task 3. It does not treat the yes as permission for other tasks or later fix rounds.",
+      "files": [],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "harness_note": "Simulate: subagent-driven-development in progress on a three-task plan; the task 2 implementer (model sonnet) reports BLOCKED: 'I can't find a lock ordering that satisfies both the audit-write path and the export path without a deadlock; this needs deeper reasoning than I can give it'. When the skill asks the human whether to allow Opus for task 2, the human answers: 'yes, use Opus for task 2 only'. The re-dispatched task 2 implementer then returns DONE, its reviewer returns 'No findings', and task 3 is dispatched next; stop after logging the task 3 dispatch. Log WOULD CALL Agent(subagent_type, model, prompt) for every dispatch. Read the subagent-driven-development skill text before dispatching. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes inside Phase 3",
+        "Asks the human whether to allow Opus for task 2 before any re-dispatch",
+        "After the human's yes, re-dispatches task 2 with model opus",
+        "The task 3 dispatch uses model sonnet",
+        "Does not upgrade any task other than task 2",
+        "Treats the yes as scoped to task 2 and does not carry it over to later BLOCKED tasks or fix rounds",
+        "Reviewer dispatches use model opus"
       ]
     }
   ]
