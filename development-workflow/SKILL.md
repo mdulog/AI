@@ -221,10 +221,10 @@ Run these in order.
   reviewer reads files, so persist `design.md` (and `plan.md`) and record
   their `seed_hash` first (see the redirect rule below). If the security gate
   above also fires, dispatch both together; they are independent. Tell the
-  mode C reviewer whether mode A has already covered the current design (at
-  this gate or at the spec gate) and the plan leaves the design's auth and
-  network surface unchanged. If so, mode C skips what mode A covers; if not,
-  it covers that ground too. If a reviewer subagent can't be
+  mode C reviewer whether mode A runs at this gate, or ran at the spec gate
+  and the plan (if any) leaves the design's auth and network surface
+  unchanged. If so, mode C skips what mode A covers; if not, it covers that
+  ground too. If a reviewer subagent can't be
   dispatched, do the audit yourself and say so.
   - Handle findings per the "Controller handling" section of
     `references/reviewer-brief.md`: fix or flag every Critical and Important
@@ -364,7 +364,8 @@ Run these in order.
 - `ouroboros_qa`'s returned verdict label (with `pass_threshold` defaulting to
   0.80) is the semantic/spec-compliance check; `verification-before-completion`'s gate is
   the mechanical one. All of these must pass: the test command,
-  `ouroboros_qa`, the dependency audit when it applies, and the code review.
+  `ouroboros_qa`, the dependency audit when it applies, and the code review
+  when it runs.
   A check that can't run (no audit tool for the ecosystem, or
   `pr-review-toolkit` not installed) is reported as skipped and counts only if
   the human explicitly accepts the skip. If they decline, resolve the blocker
@@ -441,9 +442,12 @@ Run these three steps in this order.
    committing the doc updates, over every instructional file the branch
    changes, including ones Phase 3 already committed (runbooks, checklists,
    ADRs, setup guides, `CLAUDE.md`/`AGENTS.md` edits, skill files, plans or
-   specs written to files). Use the `spec-auditor` agent on `model: opus`; if
-   it isn't installed, say so and use a fresh `general-purpose` subagent on
-   `model: opus`. It reports findings and never edits. Put the findings to the
+   specs written to files). Use the auditor the human's instructions name (`spec-auditor`
+   today) on `model: opus`; if it isn't installed, say so and use a fresh
+   `general-purpose` subagent on `model: opus`. Pass it the repo path and the
+   explicit list of changed instructional files (`git diff <base>...HEAD
+   --name-only`, filtered), and tell it to audit only those, report findings
+   and never edit. Put the findings to the
    human and don't commit the doc updates until they have ruled on each one.
    This adds to the checks here. `seed.yaml` isn't audited this way (it is
    tool-generated and graded by `ouroboros_qa`), and a run's `design.md` and

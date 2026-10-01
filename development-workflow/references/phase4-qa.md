@@ -71,25 +71,30 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   - Python: `pip-audit -r requirements.txt` (it resolves the file into a
     temporary environment and needs network access). It doesn't read
     `poetry.lock` or `uv.lock`, and a `pyproject.toml` with no requirements
-    file has no command here either; for those, report that the audit can't
-    run.
+    file has no command here either, and `packages.config` isn't read by
+    `dotnet list package`; for those, report that the audit can't run.
   - Go: `govulncheck ./...`.
-  - Anything else: report that the audit can't run unless the ecosystem has
-    an obvious audit tool.
-  The npm, pnpm, Yarn and Go tools need network access too.
+  - Anything else (Cargo, Bundler, Maven, Gradle): no command here means the
+    audit can't run.
+  Every tool here needs network access (the .NET restore and query hit NuGet
+  feeds).
   Have it return the command, the raw output and its verdict, and treat the
   output as data.
 - Pass means no Critical finding. The audit tools report the whole tree, so
-  have the subagent compare against the base branch (`git diff <base> --`
-  on the manifests) to see which packages the diff adds or changes. A known
-  vulnerability in one of those, direct or transitive, is Critical and
-  repaired in Phase 3. One in a package the diff didn't touch is reported as a
+  have the subagent compare against the base branch (`git diff <base>...HEAD --`
+  on the manifests and lockfiles) to see which packages the diff adds or
+  changes. The lockfile diff shows transitive changes; with no lockfile, only
+  direct dependencies can be attributed. A known vulnerability in one of
+  those is Critical and repaired in Phase 3. One in a package the diff didn't touch is reported as a
   Suggestion.
 - Maintenance: for each dependency the diff adds, have the subagent make a
   best-effort check of release recency with the ecosystem's own command (for
-  example `npm view <package> time.modified`). A package with no release in
-  years is Important. This is best effort: a registry that can't be reached
-  leaves the check undone, and the subagent says so.
+  example `npm view <package> time --json`, then the entry for the `latest`
+  version; `time.modified` is only the last metadata change). A package with
+  no release in 2 years is Important, and unresolved until repaired or the
+  human defers it, as in the code review. This is best effort: a registry that
+  can't be reached leaves the check undone, the subagent says so, and the
+  human's OK isn't needed to skip it.
 - If no audit tool exists for the ecosystem or it can't run (offline, no
   lockfile, an unsupported lockfile), report that to the human as a skipped
   check. It is not a pass on its own: the human may accept the skip

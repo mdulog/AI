@@ -41,8 +41,9 @@ code exists. Cover at least:
 - Input validation at the system boundary, and injection (queries, commands,
   expressions, object keys or file paths built from input, path traversal).
 - Server-side requests to caller-derived URLs (SSRF) and unsafe deserialization.
-- Secrets: none in source, none in logs, no personal data in logs, config from
-  the environment or a secret manager. Credential storage must be hashed with an adaptive algorithm.
+- Secrets: none in source, none in logs, config from the environment or a
+  secret manager. Credential storage must be hashed with an adaptive algorithm.
+- Personal data: none in logs.
 - Data exposure: error messages, stack traces or internal ids returned to
   callers, and more fields returned than the request needs.
 - Transport encryption and weak cryptography.
@@ -87,8 +88,8 @@ Input: the paths to `seed.yaml`, `design.md` and `plan.md`, the target repo
 the `seed_hash` each document was built against (from `state.json`),
 `doc_baseline_skipped` if it was recorded, whether the target is a git repo,
 the differences Seed QA reported, if the controller still has them, and
-whether mode A has already covered the current design (and the plan leaves
-its auth and network surface unchanged). The
+whether mode A runs at this gate, or ran at the spec gate and the plan (if
+any) leaves the design's auth and network surface unchanged. The
 controller computes the current hash (`sha256sum seed.yaml`) and passes it
 in, so the reviewer needs no hash command and can work with read-only tools
 under plan mode. If plan mode refused the writes, the controller passes the
@@ -143,9 +144,9 @@ the Seed, the design and the plan say about each other and about the repo:
    authorization on each, input validated at the boundary, no secrets or
    personal data in logs. A violation is Important, or Critical when it breaks one of the human's
    blocking criteria in a way a reviewer would block a merge on (a nit stays
-   a Suggestion). When the controller says mode A has already covered
-   the current design and the plan leaves its auth and network surface
-   unchanged, skip everything mode A's list covers (authentication,
+   a Suggestion). When the controller says mode A runs at this gate, or ran
+   at the spec gate and the plan (if any) leaves the design's auth and
+   network surface unchanged, skip everything mode A's list covers (authentication,
    authorization, input validation, secrets and logs, data exposure) and keep
    SOLID and the dependency check, because mode A covers the rest in depth.
    Otherwise this item covers them too, including the plan's own auth
