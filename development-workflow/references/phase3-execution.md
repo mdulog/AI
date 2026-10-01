@@ -53,10 +53,12 @@ Loaded from `SKILL.md` (Phase 3, before dispatching implementers). Section names
   first. When dispatching SDD's final whole-branch review, pass the
   review-package path and `model: opus` explicitly; the reviewer template
   has no field for either. Also tell it to cover tests, error handling, types
-  and comments, and to report as Critical any finding that breaks the human's
-  blocking criteria (see Mode B in `reviewer-brief.md`). Phase 4 skips its own
-  code review when this one comes back clean, so these are the only checks
-  that path gets.
+  and comments, and to report as Critical any finding that breaks one of the human's
+  blocking criteria in a way a reviewer would block a merge on (a real missing
+  test or SOLID break, not a naming or style nit), as Mode B in
+  `reviewer-brief.md` words it. Phase 4 skips its own code review when this
+  one comes back clean, so this is the only branch-level code review that
+  path gets.
 
 ## Implementer commit brief
 

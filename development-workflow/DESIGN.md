@@ -1039,7 +1039,7 @@ mismatch, legacy and grandfather rules each read it differently. All three are
 now keyed on the hash (equal is approved, different is a revision, absent is a
 pre-gate run), and eval 27 covers the grandfathered Phase 3 case.
 
-## User CLAUDE.md audit, 2026-10-01
+## User CLAUDE.md audit (2026-10-01)
 
 An audit of `~/.claude/CLAUDE.md` against this skill found duplicated pipeline
 rules and six places where the user's standing rules weren't enforced inside a
@@ -1080,9 +1080,9 @@ dependency audit, and `evals.json` is unchanged. Stack Defaults are still
 copied into `references/engineering-defaults.md` and still need re-checking
 when the CLAUDE.md section changes.
 
-### Follow-up fixes, 2026-10-01
+## Follow-up fixes (2026-10-01)
 
-Two `spec-auditor` passes (one on the edits, one on the follow-up plan) found
+Audit passes on the edits and on the follow-up plan found
 logic gaps in the first round. Corrections to the section above, and the
 fixes:
 
@@ -1096,16 +1096,18 @@ fixes:
 - **Corrected record.** The first section's list of removals was incomplete and
   partly wrong. Also removed: the list of auto-triggering superpowers skills
   from the Development Workflow pointer, and "in the development pipeline" from
-  the full-review plugin bullet. The Stack Defaults reference in that pointer
-  was added, not removed. "Six places" overstates the gaps: five were
+  the full-review plugin bullet. The Development Workflow pointer also gained a
+  Stack Defaults reference, which the first section doesn't mention. "Six places" overstates the gaps: five were
   enforcement gaps and the Phase 3 spot-check item was an exemption.
 - **Plan audit moved.** The CLAUDE.md rule to audit every conversational plan
-  with `spec-auditor` before presenting it was deleted by the user. Plan and
+  with `spec-auditor` before presenting it was deleted (file history shows
+  the removal, not who made it). Plan and
   spec files are now covered by the instructional-documents rule, and inside a
   run mode C audits `design.md` and `plan.md` instead.
 - **Fixes.** Mode C item 5 skips what mode A covers when mode A runs at that
-  gate, and flags unmaintained dependencies there (the Phase 4 audit can't
-  judge maintenance). Escalation to Critical in mode B and item 5 is limited
+  gate, and flags unmaintained dependencies there (superseded: the
+  maintenance check moved to the Phase 4 audit, see the 2026-10-01 section
+  on remaining audit findings below). Escalation to Critical in mode B and item 5 is limited
   to violations a reviewer would block a merge on. SDD's final-review dispatch
   passes the blocking criteria and the tests, errors, types and comments
   aspects, because Phase 4 skips its own review when that one is clean. The
