@@ -31,7 +31,7 @@ In the target project root (where your codebase lives and where `docs/` will be 
 ```bash
 mkdir -p .claude/commands .claude/agents
 cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 Verify the file count:
@@ -133,7 +133,7 @@ If the file is missing, re-run the install `cp` step. If it exists, restart Clau
 The orchestrator checks for all 6 agents by exact filename at STEP 0 and stops with the missing path. Re-run:
 
 ```bash
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 Then restart Claude Code.
@@ -170,7 +170,7 @@ When a new version of `generate-knowledge-base` ships, re-run the install:
 
 ```bash
 cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 Restart Claude Code after updating. There is no state or version file to migrate — the orchestrator is stateless between runs.

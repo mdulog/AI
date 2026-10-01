@@ -7,7 +7,7 @@ Six specialised subagents that do the analytical and writing work for the `gener
 Before running the workflow, copy these files into `.claude/agents/` inside your **target project**:
 
 ```bash
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 The orchestrator verifies all six files exist at startup and hard-stops with a specific error if any are missing.

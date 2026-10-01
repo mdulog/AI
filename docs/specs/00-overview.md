@@ -253,7 +253,7 @@ The skill is not a standalone application. It is deployed into a target project 
 ```bash
 mkdir -p .claude/commands .claude/agents
 cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 After this, the slash command `/generate-knowledge-base` is available in the target project. The required runtime is the Claude Code harness; git is optional (it enables idempotency scoping and history-preserving migration). See `architecture/overview.md` for the full deployment and runtime shape.

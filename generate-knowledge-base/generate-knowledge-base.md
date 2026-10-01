@@ -141,7 +141,7 @@ Report the detected PROJECT_TYPE and which files led you to that decision.
 The agent files shipped with this workflow live in `generate-knowledge-base/Agents/`. They must be deployed to `.claude/agents/` in the target project before this orchestrator can invoke them. If you are running this workflow for the first time on a new project, copy or symlink those files first:
 
 ```
-cp generate-knowledge-base/Agents/*.md .claude/agents/
+cp generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 Check that these files exist before proceeding:

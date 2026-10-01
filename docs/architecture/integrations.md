@@ -111,7 +111,7 @@ Installation into a target project is a pure filesystem copy — no package mana
 # From the target project root:
 mkdir -p .claude/commands .claude/agents
 cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 # Then invoke:
 /generate-knowledge-base [output-root-folder] [mode=full|light|force]
 ```

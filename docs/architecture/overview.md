@@ -140,7 +140,7 @@ The skill ships as files in this repository's `generate-knowledge-base/` directo
 ```bash
 mkdir -p .claude/commands .claude/agents
 cp generate-knowledge-base/generate-knowledge-base.md .claude/commands/
-cp generate-knowledge-base/Agents/*.md .claude/agents/
+cp generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 At runtime, Claude Code in the target project loads the orchestrator as a custom slash command and resolves subagents from `.claude/agents/`. There is no service to start, no port to bind, no process to manage. The orchestrator's only persistent side effects are the markdown files it writes under `OUTPUT_ROOT/` and the project-root `CLAUDE.md`.

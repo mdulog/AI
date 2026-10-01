@@ -63,7 +63,7 @@ When modifying agent prompt files, validate changes by deploying the modified fi
 1. **Deploy** modified files using the standard `cp` invocation:
    ```bash
    cp generate-knowledge-base/generate-knowledge-base.md /path/to/target/.claude/commands/
-   cp generate-knowledge-base/Agents/*.md /path/to/target/.claude/agents/
+   cp generate-knowledge-base/Agents/[a-z]*-*.md /path/to/target/.claude/agents/
    ```
 2. **Exercise the relevant step** by running `/generate-knowledge-base` in the target project. Use `mode=light` for quick feedback on STEPS 1–4 and 8; use `mode=full` to also test STEPS 0.5, 0.6, 5, 6, and 7.
 3. **Test scenario pairs** that exercise distinct code paths in the orchestrator:

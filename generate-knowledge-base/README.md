@@ -19,7 +19,7 @@ cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
 
 # 2. Deploy the agents to your project
 mkdir -p .claude/agents
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 
 # 3. Run from your project root in Claude Code
 /generate-knowledge-base
@@ -72,7 +72,7 @@ The six subagent files in `Agents/` must be present in `.claude/agents/` inside 
 
 ```bash
 # From your target project root
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 ### Supported project types
@@ -154,7 +154,7 @@ cp /path/to/generate-knowledge-base/generate-knowledge-base.md .claude/commands/
 The agent files haven't been copied to `.claude/agents/` in your target project. Run:
 ```bash
 mkdir -p .claude/agents
-cp /path/to/generate-knowledge-base/Agents/*.md .claude/agents/
+cp /path/to/generate-knowledge-base/Agents/[a-z]*-*.md .claude/agents/
 ```
 
 **"PROJECT_TYPE = mixed" and the workflow stopped**
