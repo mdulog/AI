@@ -961,3 +961,48 @@ Caveat: these corrections were made after seeing the failures, so the
 corrected scores are not an unbiased pass rate. The original scores
 (51/53 new skill vs 53/53 snapshot on the matched evals; 5/6 on eval 16) are
 kept in the eval-run report.
+
+## Seed approval gate (2026-10-01)
+
+Phase 1 now ends with a human gate on the Seed, on both the interview and the
+direct path. Before this change nothing asked the human to approve the Seed,
+although `SKILL.md` calls it the single source of truth and every design and
+plan is hashed against it. The direct path was the weak spot: the Seed is built
+from the human's own sentences and never shown back, so a defect surfaced only
+at Phase 4 QA and cost a rerun of Phases 2-4.
+
+Decisions:
+
+- **Both paths gated.** An interview does not guarantee the generated YAML says
+  what the human meant, so the interview path is gated too. The prompt is cheap
+  after an interview and the most valuable on the direct path.
+- **The human sees a summary, not the YAML.** Goal, acceptance criteria,
+  constraints, the Seed QA verdict and the open questions QA raised.
+  `seed.yaml` stays on disk for anyone who wants it.
+- **Seed QA stays advisory.** The human decides, not a model score.
+- **Approval is keyed on `seed_approved_hash`, not on the step.**
+  `steps_completed` is append-only, so `seed_approved` survives a regeneration;
+  only a hash equal to the current `seed.yaml` proves the current Seed was
+  approved.
+- **A hash mismatch is a Seed revision.** On resume or before Phase 3 a
+  `seed.yaml` that no longer matches `seed_approved_hash` goes back through
+  Phase 1 regeneration. It is never offered as "approve the edited file",
+  which would bless a hand edit.
+- **Request changes regenerates.** On the direct path the changes are merged
+  verbatim into `session_context`; on the interview path they go back into the
+  interview as a new answer. Regenerating with the same input would return the
+  same Seed.
+- **Runs created before the gate are grandfathered at Phase 3 and later.** At
+  Phase 2 they get the gate before design work continues. Their design and plan
+  were approved on that Seed, and gating mid-execution would meet a worktree and
+  an approved plan outside plan mode.
+
+Rejected alternatives: making the Seed QA score a gate (wrong authority);
+folding Seed review into the design approval (a coherent design hides a Seed
+defect); showing the gate only on the direct path (the interview path can still
+produce a Seed the human did not intend).
+
+Limits: the gate is prose in `SKILL.md`, and a model can skip prose. The hash
+check at Phase 3 start is the backstop. A script that refuses Phase 3 without a
+matching `seed_approved_hash` would be stronger and is not built. The new evals
+(23-26) were checked by hand against the fixtures, not run.
