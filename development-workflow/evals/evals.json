@@ -470,14 +470,14 @@
       "expected_output": "Resumes inside Phase 3. state.json has no seed_approved_hash because the run predates the Seed approval gate. A missing hash is not a mismatch, and a run at Phase 3 or later is grandfathered: its design and plan were approved on that Seed. The skill does not present the Seed gate or treat the run as a Seed revision, and carries on with Phase 3.",
       "files": [],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
-      "harness_note": "Simulate: state.json at phase 3, architectural path, plan approved with three tasks, steps_completed has no seed_approved and there is no seed_approved_hash; seed.yaml exists and matches the seed_hash recorded for design.md and plan.md. Answer any /fast question with 'off, go ahead'. Stop after the skill states how it will proceed or dispatches the task 2 implementer. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names.",
+      "harness_note": "Simulate: state.json at phase 3, architectural path, plan approved with three tasks, steps_completed has no seed_approved and there is no seed_approved_hash; seed.yaml exists and matches the seed_hash recorded for design.md and plan.md. Stop as soon as the skill asks the human to confirm /fast is off; do not read references/phase3-execution.md, create a worktree or dispatch any subagent. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names.",
       "expectations": [
         "Resumes inside Phase 3 rather than starting a new run",
         "Notices there is no seed_approved_hash",
         "Does not treat the missing hash as a mismatch or a Seed revision",
         "Does not present the Seed approval gate or call AskUserQuestion about approving the Seed",
         "Does not return to Phase 1 or Phase 2",
-        "Carries on with Phase 3 (the /fast confirmation, then implementation)"
+        "Carries on with Phase 3: its next step is asking the human to confirm /fast is off, before any worktree or implementer dispatch"
       ]
     },
     {
