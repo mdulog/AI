@@ -135,7 +135,7 @@ development-workflow/
   README.md     This file
   SKILL.md      The skill definition and source of truth for phase order, gates and state tracking
   references/   Detail loaded on demand from named phases
-  evals/        evals.json (30 authored prompts with expectations) and files/build-fixtures.sh
+  evals/        evals.json (31 authored prompts with expectations) and files/build-fixtures.sh
   DESIGN.md     Dated design decisions and audit history
 ```
 
@@ -152,7 +152,7 @@ development-workflow/
 
 ## Evals
 
-`evals/evals.json` holds 30 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
+`evals/evals.json` holds 31 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
 
 ```bash
 bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed]

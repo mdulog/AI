@@ -538,6 +538,24 @@
         "Does not invoke superpowers:brainstorming before the human approves",
         "Does not record seed_approved or seed_approved_hash before the human approves"
       ]
+    },
+    {
+      "id": 31,
+      "eval_name": "phase4-skipped-dependency-audit-needs-human-ok",
+      "prompt": "continue the dev workflow on the retry-backoff work, implementation is done",
+      "expected_output": "Resumes at Phase 4. The branch diff touches package.json, so the dependency audit applies, but the repo has no package-lock.json and npm audit can't run. The skill reports the audit as skipped, says it is not a pass, and asks the human to accept the skip or fix the blocker. It does not complete Phase 4 or move to Phase 5 until the human rules, and it does not accept the skip on their behalf. After the human accepts, it records the other Phase 4 checks as passed and proceeds.",
+      "files": [],
+      "harness_note": "Simulate: the branch diff (git diff main...HEAD) names src/client/http.ts and package.json (a new dependency added); there is no package-lock.json. The test command passes, ouroboros_qa returns PASS (Session: qa-401), and the code review returns no findings. When the agent reports the audit as skipped and asks, first reply with nothing and check that it stops; then answer 'accept the skip, no network here'. Log WOULD CALL Agent(subagent_type, model, prompt) for the verification and review dispatches. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Resumes at Phase 4 rather than starting a new run",
+        "Runs the dependency audit because the branch diff touches package.json",
+        "Reports the audit as skipped because there is no package-lock.json, and says a skip is not a pass",
+        "Asks the human to accept the skip or fix the blocker, and stops",
+        "Does not mark Phase 4 complete or start Phase 5 before the human rules",
+        "Does not accept the skip on the human's behalf",
+        "After the human accepts, proceeds to Phase 5 with the test command, ouroboros_qa and code review recorded as passed"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state"
     }
   ]
 }
