@@ -1,6 +1,6 @@
 # Claude Code Skills
 
-A collection of multi-agent Claude Code skills. Each skill is a markdown orchestrator + subagents deployed into a target project via `.claude/commands/` and `.claude/agents/`.
+A collection of multi-agent Claude Code skills. `generate-knowledge-base` and `generate-prd` are markdown orchestrators + subagents deployed into a target project via `.claude/commands/` and `.claude/agents/`. `development-workflow` is a single skill installed at user level.
 
 | Skill | Command | What it does |
 |---|---|---|
@@ -232,15 +232,15 @@ Run a piece of engineering work through a six-phase pipeline that combines Ourob
 
 ## What it does
 
-The skill is a single `SKILL.md` that acts as a resumable state machine. It stops at every human gate the pipeline requires and writes its own artifacts to disk, so a new session can pick a run back up. It is opt-in: it only runs when you explicitly ask for the dev workflow or full pipeline, and it never blocks direct use of `superpowers:brainstorming` or the Ouroboros tools.
+The skill is a `SKILL.md` plus on-demand `references/` that acts as a resumable state machine. See the [`development-workflow` README](development-workflow/README.md) for the details. It stops at every human gate the pipeline requires and writes its own artifacts to disk, so a new session can pick a run back up. It is opt-in: it only runs when you explicitly ask for the dev workflow or full pipeline, and it never blocks direct use of `superpowers:brainstorming` or the Ouroboros tools.
 
 | Phase | What happens |
 |---|---|
-| 0. Classify and preflight | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). It also checks that the model setting is `opusplan` and that the Ouroboros tools can be loaded, before creating anything. Out-of-scope work, such as a typo fix, is done directly with no run. |
-| 1. Requirements → Seed | Interviews you if goal, constraints, and success criteria aren't all stated, then generates a Seed spec. Runs in plan mode. |
+| 0. Classify and preflight | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). It also checks that the model setting is `opusplan` and that the Ouroboros tools can be loaded, before creating anything. Out-of-scope work, such as a typo fix, gets your call: the skill explains how it classified the request and offers to run the pipeline anyway, or makes the change directly. Nothing is created unless you opt in. |
+| 1. Requirements → Seed | Interviews you if goal, constraints, and success criteria aren't all stated, then generates a Seed spec and asks you to approve it before Phase 2. Runs in plan mode. |
 | 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. Before you see the design or plan, a separate reviewer subagent audits the Seed, design and plan against each other and the repo (every acceptance criterion needs a design element and something that proves it). If the design touches auth or a public network surface, a separate reviewer subagent checks it for security risks before you see it. |
-| 3. Isolate & execute | Creates a git worktree for the branch (skipped outside a git repo), then implements with TDD on Sonnet. Architectural plans run through `superpowers:subagent-driven-development`, and bounded changes run inline. |
-| 4. Evaluate | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a separate reviewer subagent to run `pr-review-toolkit:review-pr` on the branch diff. A REVISE or FAIL verdict is reported to you, never auto-retried. |
+| 3. Isolate & execute | Creates a git worktree for the branch (skipped outside a git repo), then implements with TDD on Sonnet. Multi-task architectural plans run through `superpowers:subagent-driven-development`, and bounded changes run inline. |
+| 4. Evaluate | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a separate reviewer subagent to run `pr-review-toolkit:review-pr` on the branch diff, unless `subagent-driven-development`'s final review already came back clean. A REVISE or FAIL verdict is reported to you, never auto-retried. |
 | 5. Finish & push | Checks docs are in sync, verifies, then finishes the branch. |
 
 ## Requirements
@@ -276,12 +276,13 @@ Seed, design, and plan files are never written into the target repo. Each run ge
 
 ```
 development-workflow/
+  README.md     User-facing overview of the skill
   SKILL.md      The skill (deploy to ~/.claude/skills/development-workflow/)
   references/   Detail that SKILL.md loads at the phase that needs it: seed generation
                 edge cases, Seed QA, doc baseline, Phase 3 execution, Phase 4 QA,
                 the reviewer subagent brief, run lifecycle details, and Context7
                 and stack defaults
-  evals/        evals.json (22 test prompts with expectations) and files/
+  evals/        evals.json (26 test prompts with expectations) and files/
                 build-fixtures.sh for the sandboxes they run in
   DESIGN.md     Design rationale, audit history, and later changes
 ```
