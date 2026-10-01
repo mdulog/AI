@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Usage: build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design]
+# Usage: build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed]
 # --at-phase4 seeds a bounded-path run at Phase 4: one commit on a feature branch on top of main, all committed.
+# --seed-mismatch seeds a phase 2 run whose seed.yaml was edited after the human approved it (seed_approved_hash no longer matches).
+# --legacy-seed seeds a phase 2 run created before the Seed approval gate existed (no seed_approved step, no seed_approved_hash).
+# Every other seeded run records seed_approved and a matching seed_approved_hash.
 # --empty builds a bare greenfield repo (only .gitkeep) instead of the billing-app files.
 # Builds a sandbox: <dest>/billing-app (tiny git repo, no remote) and an empty
 # <dest>/dev-workflow-runs/. With --with-resume, also seeds one in_progress run
@@ -30,8 +33,9 @@ if [ "$with_resume" = "--with-resume" ]; then
   printf 'goal: Add scheduled billing export to S3\nconstraints:\n  - no new paid services\nacceptance_criteria:\n  - nightly CSV lands in S3\n' > "$run/seed.yaml"
   old_hash=$(sha256sum "$run/seed.yaml" | cut -d' ' -f1)
   printf '# Design\nNightly cron writes CSV via src/export/csv.ts to S3.\n' > "$run/design.md"
-  printf '  - export includes refunds\n' >> "$run/seed.yaml"   # Seed revised after design approved -> hash now stale
-  printf '{"phase":2,"status":"in_progress","steps_completed":["seed_generated","seed_qa: PASS"],"worktree":null,"design":{"path":"%s/design.md","seed_hash":"%s"},"plan":null}\n' "$run" "$old_hash" > "$run/state.json"
+  printf '  - export includes refunds\n' >> "$run/seed.yaml"   # Seed revised after design approved -> design hash now stale
+  new_hash=$(sha256sum "$run/seed.yaml" | cut -d' ' -f1)       # the human approved this revised Seed, so only the design is stale
+  printf '{"phase":2,"status":"in_progress","steps_completed":["seed_generated","seed_qa: PASS","seed_approved"],"seed_approved_hash":"%s","worktree":null,"design":{"path":"%s/design.md","seed_hash":"%s"},"plan":null}\n' "$new_hash" "$run" "$old_hash" > "$run/state.json"
 fi
 
 if [ "$with_resume" = "--at-phase4" ]; then
@@ -45,7 +49,7 @@ if [ "$with_resume" = "--at-phase4" ]; then
   printf 'goal: Add retry to the HTTP client get\nconstraints:\n  - no new dependencies\nacceptance_criteria:\n  - get retries up to maxAttempts on network error\n' > "$run/seed.yaml"
   printf '# Design\nLoop around fetch in src/client/http.ts with a maxAttempts parameter.\n' > "$run/design.md"
   h=$(sha256sum "$run/seed.yaml" | cut -d' ' -f1)
-  printf '{"phase":4,"status":"in_progress","path":"bounded","steps_completed":["seed_generated","seed_qa: PASS","design_approved","implementation_complete"],"worktree":"%s","design":{"path":"%s/design.md","seed_hash":"%s"},"plan":null}\n' "$repo" "$run" "$h" > "$run/state.json"
+  printf '{"phase":4,"status":"in_progress","path":"bounded","steps_completed":["seed_generated","seed_qa: PASS","seed_approved","design_approved","implementation_complete"],"seed_approved_hash":"%s","worktree":"%s","design":{"path":"%s/design.md","seed_hash":"%s"},"plan":null}\n' "$h" "$repo" "$run" "$h" > "$run/state.json"
 fi
 
 if [ "$with_resume" = "--at-phase2-design" ]; then
@@ -61,5 +65,21 @@ if [ "$with_resume" = "--at-phase2-design" ]; then
 - Errors return the exception message to the caller to ease debugging.
 DESIGN
   h=$(sha256sum "$run/seed.yaml" | cut -d' ' -f1)
-  printf '{"phase":2,"status":"in_progress","path":"architectural","steps_completed":["seed_generated","seed_qa: PASS","design_drafted"],"worktree":null,"design":{"path":"%s/design.md","seed_hash":"%s"},"plan":null}\n' "$run" "$h" > "$run/state.json"
+  printf '{"phase":2,"status":"in_progress","path":"architectural","steps_completed":["seed_generated","seed_qa: PASS","seed_approved","design_drafted"],"seed_approved_hash":"%s","worktree":null,"design":{"path":"%s/design.md","seed_hash":"%s"},"plan":null}\n' "$h" "$run" "$h" > "$run/state.json"
+fi
+
+if [ "$with_resume" = "--seed-mismatch" ]; then
+  # Phase 2, no design yet: the human approved the Seed, then seed.yaml was edited outside regeneration.
+  run="$runs/billing-app/2026-09-30-billing-export"; mkdir -p "$run"
+  printf 'goal: Add scheduled billing export to S3\nconstraints:\n  - no new paid services\nacceptance_criteria:\n  - nightly CSV lands in S3\n' > "$run/seed.yaml"
+  h=$(sha256sum "$run/seed.yaml" | cut -d' ' -f1)
+  printf '  - export includes refunds\n' >> "$run/seed.yaml"
+  printf '{"phase":2,"status":"in_progress","steps_completed":["seed_generated","seed_qa: PASS","seed_approved"],"seed_approved_hash":"%s","worktree":null,"design":null,"plan":null}\n' "$h" > "$run/state.json"
+fi
+
+if [ "$with_resume" = "--legacy-seed" ]; then
+  # Phase 2, no design yet: run created before the Seed approval gate existed.
+  run="$runs/billing-app/2026-09-30-billing-export"; mkdir -p "$run"
+  printf 'goal: Add scheduled billing export to S3\nconstraints:\n  - no new paid services\nacceptance_criteria:\n  - nightly CSV lands in S3\n' > "$run/seed.yaml"
+  printf '{"phase":2,"status":"in_progress","steps_completed":["seed_generated","seed_qa: PASS"],"worktree":null,"design":null,"plan":null}\n' > "$run/state.json"
 fi

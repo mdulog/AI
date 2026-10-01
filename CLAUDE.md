@@ -32,7 +32,7 @@ python scripts/smoke_grade.py --baseline ./kb-baseline/docs --new ./kb-new/docs
 # Optional pre-push docs hook, installed per clone
 bash scripts/install-hooks.sh
 
-# development-workflow eval sandbox (flags: --with-resume | --empty | --at-phase4 | --at-phase2-design)
+# development-workflow eval sandbox (flags: --with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed)
 bash development-workflow/evals/files/build-fixtures.sh <dest> [flag]
 ```
 
