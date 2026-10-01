@@ -73,7 +73,7 @@ Run these in order.
 4. **Ouroboros tools.** A new run needs `ouroboros_interview`,
    `ouroboros_generate_seed` and `ouroboros_qa`. A resume in Phase 1 needs all three. A
    resume at Phase 2 or later needs only `ouroboros_qa`, since the interview and Seed tools are used only
-   in Phase 1. The tools are usually deferred, so judging by their absence
+   in Phase 1 (a Seed revision re-runs this step; see Seed versioning). The tools are usually deferred, so judging by their absence
    from the tool list is wrong. Load them with one ToolSearch query naming
    the ones needed; for a new run:
    `select:mcp__plugin_ouroboros_ouroboros__ouroboros_interview,mcp__plugin_ouroboros_ouroboros__ouroboros_generate_seed,mcp__plugin_ouroboros_ouroboros__ouroboros_qa`.
@@ -130,13 +130,20 @@ Run these in order.
   - Approve: append `seed_approved` to `steps_completed` and record the Seed's hash
     as `seed_approved_hash` in `state.json`.
   - Request changes: on the direct path, merge the human's changes verbatim into
-    `session_context` and call `ouroboros_generate_seed` again (the same input would
-    return the same Seed); on the interview path, feed the changes into the
-    interview session as a new answer, then regenerate. Reload the Ouroboros tools
-    with ToolSearch first, since schemas can unload between turns. Never hand-edit
+    `session_context` and call `ouroboros_generate_seed` again (re-sending unchanged
+    input can't produce the requested change); on the interview path, feed the
+    changes into the interview session as a new answer, then regenerate. A resumed
+    run has neither the original `session_context` nor an interview session id
+    (`state.json` doesn't store them), so rebuild `session_context` from
+    `seed.yaml`'s goal, constraints and acceptance criteria plus the changes and
+    take the direct path. Reload the Ouroboros tools with ToolSearch first, since schemas can unload between turns. Never hand-edit
     the Seed. The new Seed has a new hash, so run Seed QA and this gate again.
-  - Abandon: set `state.json`'s `status` to `abandoned` and close the
-    `[dev-workflow]` todos.
+  - Abandon: set `state.json`'s `status` to `abandoned`, close the
+    `[dev-workflow]` todos and call `ExitPlanMode`, so the session leaves plan mode.
+  - If plan mode refused the `seed.yaml` write, still run the gate on the in-chat
+    Seed. Hash the exact bytes you will persist, and record `seed_approved` and
+    `seed_approved_hash` right after `ExitPlanMode`, together with the deferred
+    `seed.yaml`.
 - **Fan-out model assignment sub-rule** (fires during interview advisory
   fan-out): default mechanical/low-judgment lanes (`data_context`,
   `answer_simplifier`) to Haiku; reserve Sonnet/Opus for lanes needing deeper
@@ -520,13 +527,17 @@ Run these three steps in this order.
   - Check staleness (recompute the hash and compare) on resume and again
     before Phase 3 starts.
   - On resume and before Phase 3, also compare the current `seed.yaml` hash with
-    `seed_approved_hash`. A mismatch is a Seed revision: regenerate through
-    Phase 1 with the human's agreement (see Seed versioning). Never offer to
-    approve the edited file, which would bless a hand edit.
-  - A resumed run at Phase 2 with no `seed_approved` gets the Seed approval gate
-    before design work continues; asking for changes there is a Seed revision
-    (see Seed versioning). A run already at Phase 3 or later is grandfathered:
-    its design and plan were approved on that Seed.
+    `seed_approved_hash`. That puts the run in one of three states:
+    - Equal: the Seed is approved.
+    - Present but different: a Seed revision. Regenerate through Phase 1 with the
+      human's agreement (see Seed versioning). Never offer to approve the edited
+      file, which would bless a hand edit.
+    - Absent: a run from before the gate. A missing hash is not a mismatch. At
+      Phase 2 or earlier it gets the Seed approval gate before design work
+      continues, and asking for changes there is a Seed revision. At Phase 3 or
+      later it is grandfathered, since its design and plan were approved on that
+      Seed; if it later returns to Phase 2 (a failed spike, a Seed-wrong repair),
+      it gets the gate then.
   - Set `complete` when Phase 5 finishes or a Spike ends.
   - Set `abandoned` if the human drops the run, so resume stops offering it.
 
@@ -551,8 +562,8 @@ Run these three steps in this order.
   - `seed.yaml` — the current Seed, persisted the moment Phase 1 produces or
     revises it.
   - `state.json` — current phase, `status` (`in_progress`, `complete`, or
-    `abandoned`),
-    `steps_completed` (see State tracking), worktree path (if one exists — see
+    `abandoned`), `path` (`bounded`, `architectural` or `spike`),
+    `steps_completed` (see State tracking), `seed_approved_hash`, worktree path (if one exists — see
     Phase 3), and pointers to
     `design.md`/`plan.md` with the `seed_hash` each was built against.
   - `design.md` — brainstorming's spec, redirected here instead of its default
