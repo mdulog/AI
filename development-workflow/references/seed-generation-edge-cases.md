@@ -1,6 +1,6 @@
 # Seed generation: refusals, gap questions, client gates
 
-Loaded from `SKILL.md` (Phase 1, when `ouroboros_generate_seed` refuses or asks for more). Section names below refer to sections of `SKILL.md`. Text is moved verbatim from there; the rules in `SKILL.md` still apply.
+Loaded from `SKILL.md` (Phase 1, before calling `ouroboros_generate_seed` and again if it refuses or asks for more). Section names below refer to sections of `SKILL.md`. Text is moved verbatim from there; the rules in `SKILL.md` still apply.
 
 - Seed generation can refuse or ask for more, and the two paths differ
   (checked against Ouroboros 0.55.3; re-check these after an Ouroboros upgrade):

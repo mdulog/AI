@@ -1,6 +1,6 @@
 # Phase 4: model policy and the ouroboros_qa call
 
-Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`, and before Phase 1's Seed QA). Section names below refer to sections of `SKILL.md`. The model-policy bullet is added here; the rest is moved from there. The rules in `SKILL.md` still apply.
+Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names below refer to sections of `SKILL.md`. The model-policy bullet is added here; the rest is moved from there. The rules in `SKILL.md` still apply.
 
 - **Model policy.** Verification runs on Opus, even though `ExitPlanMode`
   has already dropped the main session to Sonnet. Dispatch review agents
@@ -23,9 +23,9 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`, and before Phase
   per-role id apply, and with only `qa_model` set every other role stays on
   its automatic tier. Keep it that way: do not add other role ids or set
   `models.default`, which applies to every role. Do not edit that file on
-  your own. Before Phase 1's Seed QA, confirm the file still holds both
-  settings (`ouroboros setup` or a config tool may rewrite it), and if it
-  doesn't, tell the human that QA would run on Sonnet. Re-check this
+  your own. `SKILL.md`'s Phase 1 Seed QA rule confirms the file still holds both
+  settings (`ouroboros setup` or a config tool may rewrite it) and tells the
+  human, if it doesn't, that QA would run on Sonnet. Re-check this
   paragraph after any Ouroboros upgrade.
 
 ## The ouroboros_qa call

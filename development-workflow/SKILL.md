@@ -328,9 +328,9 @@ Run these in order.
   worktree path from `state.json` (or the repo path), because the session's
   working directory may not be the worktree; don't re-judge it on Sonnet.
   Dispatch review agents on `model: opus` too. `ouroboros_qa` picks its own
-  model and is configured for Opus through `~/.ouroboros/config.yaml`; confirm
-  that file still holds both settings before Phase 1's Seed QA. Read
-  `references/phase4-qa.md` for the details.
+  model and is configured for Opus through `~/.ouroboros/config.yaml`, which
+  Phase 1's Seed QA rule already checks. Read `references/phase4-qa.md` for the
+  details.
 - **Always** run the project's real test command per
   `superpowers:verification-before-completion`'s IDENTIFY/RUN/READ/VERIFY
   gate — this is unconditional, not a fallback. Mechanical correctness (does
