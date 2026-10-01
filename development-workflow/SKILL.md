@@ -215,11 +215,13 @@ Run these in order.
   the plan trace to each other (every acceptance criterion has a design
   element and something that proves it), agree with each other and with the
   current repo (every file path, function, table and command they name exists
-  as described), that the plan is sound, and that both hold to SOLID and the human's
-  security controls. The reviewer reads files, so
-  persist `design.md` (and `plan.md`) and record their `seed_hash` first (see
-  the redirect rule below). If the security gate above also fires, dispatch
-  both together; they are independent. If a reviewer subagent can't be
+  as described), that the plan is sound, and that both hold to SOLID and, where
+  the human's instructions give a security checklist, to that checklist. The
+  reviewer reads files, so persist `design.md` (and `plan.md`) and record
+  their `seed_hash` first (see the redirect rule below). If the security gate
+  above also fires, dispatch both together; they are independent. Tell the
+  mode C reviewer whether the security gate is running, so it doesn't repeat
+  mode A's findings. If a reviewer subagent can't be
   dispatched, do the audit yourself and say so.
   - Handle findings per the "Controller handling" section of
     `references/reviewer-brief.md`: fix or flag every Critical and Important
@@ -296,8 +298,9 @@ Run these in order.
   dispatch the final review.
 - Per-chunk spot-check agents named in the human's own instructions (code
   reviewer, simplifier and the like) don't run during a pipeline run. The
-  per-task reviews in `subagent-driven-development` and the Phase 4 review
-  cover them, and the simplifier would edit code after tests and QA.
+  per-task reviews in `subagent-driven-development`, where it runs, and the
+  Phase 4 review cover them, and the simplifier would edit code after it was
+  tested and reviewed.
 - **Stop and ask** (see the standalone Stop and ask section; it applies here
   too). On scope expansion, let brainstorming's own ratchet decide whether the
   path upgrades (see Error handling) rather than absorbing the extra work.
@@ -357,7 +360,8 @@ Run these in order.
 - `ouroboros_qa`'s returned verdict label (with `pass_threshold` defaulting to
   0.80) is the semantic/spec-compliance check; `verification-before-completion`'s gate is
   the mechanical one. All of these must pass: the test command,
-  `ouroboros_qa`, and any code review that ran. They cover different
+  `ouroboros_qa`, the dependency audit when it applies, and any code review
+  that ran. They cover different
   concerns, and none substitutes for another. The same tool is advisory at
   Phase 1 (grading the Seed) and a gate here (grading the implementation).
 - **Code review**: dispatch a separate reviewer subagent to run
@@ -386,7 +390,7 @@ Run these in order.
 - **Dependency audit**: if the diff adds or changes a dependency (a manifest
   or lockfile), run the ecosystem's audit tool in the same `model: opus`
   verification subagent as the test command. A known vulnerability in an added
-  or changed dependency is Critical; an unmaintained one is Important. Read
+  or changed dependency is Critical. Read
   `references/phase4-qa.md` for the commands and what to do when no audit tool
   exists.
 - Soft gate: a non-pass QA verdict (REVISE or FAIL) is reported as a new visible step,
@@ -408,7 +412,8 @@ Run these in order.
     `model: sonnet`) or an inline TDD cycle scoped to the finding. Don't re-invoke
     `subagent-driven-development` on the whole plan; it deletes its ledger at
     finish and would redispatch every task. Re-run Phase 4 on the result,
-    including code review of the repair diff.
+    including the dependency audit if the repair touched a dependency, and
+    code review of the repair diff.
   - Seed wrong → this is a Seed revision. Apply the Seed-versioning invalidation
     rule: regenerate the Seed through Phase 1, then return to Phase 2, not
     Phase 3.
@@ -426,7 +431,9 @@ Run these three steps in this order.
    one). Commit doc updates on the branch before verification and finishing;
    never push with the docs out of sync. Where the human's own instructions
    require an audit of generated instructional documents (runbooks, ADRs, setup
-   guides), run it on those updates before committing them; it adds to the
+   guides), run it on those updates before committing them, in a subagent on
+   `model: opus` that reports findings and never edits. Put the findings to the
+   human and don't commit the updates until they have ruled on each one; it adds to the
    checks here. Also check that the Seed's documentation criteria, which Phase 4 left out,
    are met by the doc updates, and record `doc_criteria_met` in
    `steps_completed`. If they aren't met, update the docs and re-check; if a

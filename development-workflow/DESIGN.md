@@ -1079,3 +1079,42 @@ Not covered: no eval exercises the new Mode B and Mode C items or the
 dependency audit, and `evals.json` is unchanged. Stack Defaults are still
 copied into `references/engineering-defaults.md` and still need re-checking
 when the CLAUDE.md section changes.
+
+### Follow-up fixes, 2026-10-01
+
+Two `spec-auditor` passes (one on the edits, one on the follow-up plan) found
+logic gaps in the first round. Corrections to the section above, and the
+fixes:
+
+- **Reversal.** The Plan Mode bullet "call `EnterPlanMode` when
+  `superpowers:brainstorming` is invoked" was restored in `~/.claude/CLAUDE.md`.
+  It had been removed as pipeline-only, but brainstorming auto-triggers in
+  ordinary work. The `ExitPlanMode` bullet was restored with it, so ordinary
+  work has an exit rule to match the entry rule. The `opusplan` and `/fast`
+  bullets stay removed: they describe harness behavior that the skill's Model
+  policy owns.
+- **Corrected record.** The first section's list of removals was incomplete and
+  partly wrong. Also removed: the list of auto-triggering superpowers skills
+  from the Development Workflow pointer, and "in the development pipeline" from
+  the full-review plugin bullet. The Stack Defaults reference in that pointer
+  was added, not removed. "Six places" overstates the gaps: five were
+  enforcement gaps and the Phase 3 spot-check item was an exemption.
+- **Plan audit moved.** The CLAUDE.md rule to audit every conversational plan
+  with `spec-auditor` before presenting it was deleted by the user. Plan and
+  spec files are now covered by the instructional-documents rule, and inside a
+  run mode C audits `design.md` and `plan.md` instead.
+- **Fixes.** Mode C item 5 skips what mode A covers when mode A runs at that
+  gate, and flags unmaintained dependencies there (the Phase 4 audit can't
+  judge maintenance). Escalation to Critical in mode B and item 5 is limited
+  to violations a reviewer would block a merge on. SDD's final-review dispatch
+  passes the blocking criteria and the tests, errors, types and comments
+  aspects, because Phase 4 skips its own review when that one is clean. The
+  dependency audit is in the Phase 4 gate list, with a defined pass (no
+  Critical, and "can't run" is reported, not a pass) and per-ecosystem
+  commands. The Phase 5 document audit puts findings to the human and waits for
+  a ruling on each.
+- **Unverified.** The audit command forms come from memory and the auditor's
+  notes, not current tool docs. `pip-audit` and `govulncheck` weren't run here.
+  Poetry and uv lockfiles aren't audited.
+- **Not covered.** No evals exercise the new reviewer-brief items or the
+  dependency audit.

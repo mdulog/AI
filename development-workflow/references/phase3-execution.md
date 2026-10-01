@@ -52,7 +52,11 @@ Loaded from `SKILL.md` (Phase 3, before dispatching implementers). Section names
   want to keep (the Rulings list, review packages) into the run directory
   first. When dispatching SDD's final whole-branch review, pass the
   review-package path and `model: opus` explicitly; the reviewer template
-  has no field for either.
+  has no field for either. Also tell it to cover tests, error handling, types
+  and comments, and to report as Critical any finding that breaks the human's
+  blocking criteria (see Mode B in `reviewer-brief.md`). Phase 4 skips its own
+  code review when this one comes back clean, so these are the only checks
+  that path gets.
 
 ## Implementer commit brief
 

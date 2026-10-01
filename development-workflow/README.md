@@ -27,6 +27,7 @@ Phase 3  Isolate & execute      Sonnet
    ▼
 Phase 4  Evaluate               Opus verifiers
    │     real test command + ouroboros_qa on the diff + pr-review-toolkit code review
+   │     + dependency audit when a manifest or lockfile changed
    │     (code review is skipped when subagent-driven-development's final review was clean,
    │      and always runs after a repair loop)
    ▼
@@ -40,8 +41,8 @@ Phase 5  Finish & push          Opus verification
 | 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. Then shows you the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) and waits for your approval before Phase 2. Asking for changes regenerates the Seed; the skill never hand-edits it. | Interview completion; opt-in Seed refinement; Seed approval (approve, request changes or abandon) |
 | 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. | Design approval (bounded), spec approval then plan approval (architectural), or approval of the question and probe (spike, plus permission to leave plan mode if the answer needs a throwaway build). A Seed gap the audit finds goes to you and blocks presenting |
 | 3 | Creates a worktree (skipped outside a git repo) and implements with TDD. Multi-task plans run through `superpowers:subagent-driven-development`, one implementer at a time. Bounded changes run inline. | Confirm `/fast` is off; stop-and-ask triggers |
-| 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean (a review always runs after a repair loop). Every check that ran must pass. | A REVISE or FAIL verdict is reported to you, never auto-retried |
-| 5 | Establishes a doc baseline first if the repo has none (unless Phase 2 skipped it), syncs `README.md` and `docs/` to the branch diff, re-verifies in an Opus subagent, then finishes the branch. | PR creation and push stay manual |
+| 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean (a review always runs after a repair loop). Runs the ecosystem's dependency audit when the diff changes a manifest or lockfile. Every check that ran must pass. | A REVISE or FAIL verdict is reported to you, never auto-retried |
+| 5 | Establishes a doc baseline first if the repo has none (unless Phase 2 skipped it), syncs `README.md` and `docs/` to the branch diff, re-verifies in an Opus subagent, then finishes the branch. | PR creation and push stay manual; if your instructions require an audit of instructional docs, its findings come to you before the doc updates are committed |
 
 ### The three paths in Phase 2
 
@@ -145,7 +146,7 @@ development-workflow/
 | [`reviewer-brief.md`](references/reviewer-brief.md) | Phase 2 design and security audits, Phase 4 code review |
 | [`doc-baseline.md`](references/doc-baseline.md) | Phase 2 plan check and the Phase 5 backstop |
 | [`phase3-execution.md`](references/phase3-execution.md) | Phase 3, worktree mechanics and implementer briefs |
-| [`phase4-qa.md`](references/phase4-qa.md) | Phase 4, the `ouroboros_qa` call and model policy |
+| [`phase4-qa.md`](references/phase4-qa.md) | Phase 4, the `ouroboros_qa` call, model policy and dependency audit |
 | [`run-lifecycle.md`](references/run-lifecycle.md) | Phase 0 run creation and Seed hashing |
 | [`engineering-defaults.md`](references/engineering-defaults.md) | Phase 1 stack questions, and the Phase 2-3 Context7 lookups |
 
