@@ -34,7 +34,7 @@
       "id": 3,
       "eval_name": "ambiguous-feature-full-path",
       "prompt": "use the full dev workflow pipeline: I want the app to notify users when something important happens. not sure what counts as important yet or which channels. multi-file change for sure.",
-      "expected_output": "In scope. Runs the Phase 0 preflight (model check, then one ToolSearch for the three Ouroboros tools), then creates the run dir and todos, calls EnterPlanMode before any interview question, runs ouroboros_interview (goal/criteria are not stated), then generate_seed with the session_id, persists seed.yaml, runs Seed QA as advisory, then stops at a human gate.",
+      "expected_output": "In scope. Runs the Phase 0 preflight (model check, then one ToolSearch for the three Ouroboros tools), then creates the run dir and todos, calls EnterPlanMode before any interview question, runs ouroboros_interview (goal/criteria are not stated), then generate_seed with the session_id, persists seed.yaml, runs Seed QA as advisory, then presents the Seed at the Seed approval gate and stops for approval.",
       "files": [],
       "expectations": [
         "Checks for a resumable run before creating a new one",
@@ -47,9 +47,10 @@
         "Does not proceed to Phase 2 before a Seed exists",
         "Persists seed.yaml in the run directory, not the target repo",
         "Reports Seed QA verdict as advisory and does not gate on the score",
-        "Reads references/run-lifecycle.md when creating the run directory"
+        "Reads references/run-lifecycle.md when creating the run directory",
+        "Presents the Seed (goal, acceptance criteria, constraints, Seed QA verdict, open questions) and asks for approval with AskUserQuestion before Phase 2 starts, rather than moving on from the Seed QA verdict"
       ],
-      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns all three Ouroboros tools."
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns all three Ouroboros tools. Simulate the human not yet answering the gate; stop after the gate is presented."
     },
     {
       "id": 4,
@@ -73,17 +74,18 @@
       "id": 5,
       "eval_name": "spike-ends-without-plan",
       "prompt": "run the full workflow pipeline on this question: can we swap our JSON logger for pino without breaking the structured fields our log shipper parses? just need an answer, don't build it",
-      "expected_output": "Classified as a spike. No design document, no plan. Gets approval of the question and probe, answers from reading and reasoning, sets state.json status to complete, closes todos, and stops.",
+      "expected_output": "After the Seed is approved at the Seed approval gate, classified as a spike. No design document, no plan. Gets approval of the question and probe, answers from reading and reasoning, sets state.json status to complete, closes todos, and stops.",
       "files": [],
       "expectations": [
         "Treats this as a spike and does not call superpowers:writing-plans",
+        "Presents the Seed (goal, acceptance criteria, constraints, Seed QA verdict, open questions) and asks for approval with AskUserQuestion before Phase 2 starts, rather than moving on from the Seed QA verdict",
         "Asks the human to approve the question and probe before investigating",
         "Does not write design.md or plan.md",
         "Does not create a worktree or edit target repo files",
         "Sets state.json status to complete at the end",
         "Marks or deletes the remaining [dev-workflow] todos"
       ],
-      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names."
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. The Seed approval gate follows Seed QA: when the agent logs WOULD CALL AskUserQuestion for it, answer 'approve'."
     },
     {
       "id": 6,
@@ -108,9 +110,10 @@
         "States a language and test framework default in its answer",
         "The stated default is C#/.NET with TUnit, OR the agent flags a conflict between the skill and the global preferences and asks which to use",
         "Does not silently default to TypeScript/Node/Jest",
-        "Does not write anything into the target repo during Phases 1-2"
+        "Does not write anything into the target repo during Phases 1-2",
+        "After generating and persisting the Seed, stops at the Seed approval gate before Phase 2 and does not start brainstorming until the human approves"
       ],
-      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus."
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus. Simulate the human not yet answering the Seed approval gate; stop after it is presented."
     },
     {
       "id": 8,
@@ -118,17 +121,18 @@
       "prompt": "use the full dev workflow pipeline: goal is to add rate limiting to our public API. constraints: must not break existing clients, no new infrastructure. success: it should feel fast and be reasonably safe.",
       "expected_output": "Goal, constraints and criteria are all stated (if vague), so the direct path runs. Seed QA returns REVISE (simulated). The skill treats it as advisory, carries the differences into Phase 2 as open questions, offers one opt-in refinement pass, and does not run it without an explicit yes.",
       "files": [],
-      "harness_note": "When the agent logs WOULD CALL ouroboros_qa, tell it to assume verdict REVISE, Session: qa-123, suggestions: (1) 'feel fast' is not measurable, (2) 'reasonably safe' is undefined, (3) no limit values stated. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus.",
+      "harness_note": "When the agent logs WOULD CALL ouroboros_qa, tell it to assume verdict REVISE, Session: qa-123, suggestions: (1) 'feel fast' is not measurable, (2) 'reasonably safe' is undefined, (3) no limit values stated. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus. Decline the refinement pass when offered; simulate the human not yet answering the Seed approval gate.",
       "expectations": [
         "Calls ouroboros_generate_seed directly with session_context and does not interview",
         "Persists seed.yaml in the run directory immediately",
         "Runs ouroboros_qa with artifact_type document and pass_threshold 0.90",
-        "Reports the REVISE verdict as advisory and does not stop the pipeline on the score",
+        "Reports the REVISE verdict as advisory and does not stop the pipeline on the score alone (the Seed approval gate is a separate human gate)",
         "Keeps the QA session id from the Session: line",
         "Lists the top two or three suggestions to the human",
         "Carries every listed difference into Phase 2 as an open question",
         "Offers one opt-in refinement pass and does not run it without an explicit yes",
-        "Does not hand-edit seed.yaml"
+        "Does not hand-edit seed.yaml",
+        "After the refinement-pass offer is declined, presents the Seed with its REVISE verdict and open questions at the Seed approval gate and waits for approval before Phase 2"
       ]
     },
     {
@@ -282,7 +286,7 @@
       "prompt": "continue the dev workflow on the CSV export feature, the design and plan are drafted",
       "expected_output": "Resumes at Phase 2 at the plan approval gate (architectural path, spec already approved, design and plan drafted, no security trigger). Before presenting, dispatches a separate mode C reviewer (opus) with seed.yaml, design.md, plan.md, the repo path and the recorded seed_hash. The audit reports two Important findings: a Seed acceptance criterion has no plan task or test, and a plan task names a file that doesn't exist. The controller adds the task and test and corrects the path in plan.md (no Critical finding, so no re-run), records design_audit in steps_completed, then presents the plan with the audit summary and an executive summary, and stops at the approval gate.",
       "files": [],
-      "harness_note": "Simulate the mode C return: a traceability table; Important: acceptance criterion 3 ('exports over 10,000 rows stream without loading every row into memory') has no plan task or test; Important: plan task 4 names ExportJob.ts but the repo file is ExportRunner.ts (a path that does not exist); Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "harness_note": "Simulate the mode C return: a traceability table; Important: acceptance criterion 3 ('exports over 10,000 rows stream without loading every row into memory') has no plan task or test; Important: plan task 4 names ExportJob.ts but the repo file is ExportRunner.ts (a path that does not exist); Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. state.json also records seed_approved in steps_completed and a seed_approved_hash equal to the hash of the current seed.yaml.",
       "expectations": [
         "Resumes at Phase 2 and confirms the design and plan are not stale (seed_hash matches)",
         "Dispatches a separate reviewer subagent for the design and plan audit instead of auditing in the main session",
@@ -304,7 +308,7 @@
       "prompt": "continue the dev workflow on the report-generation work, design is drafted and the plan is written",
       "expected_output": "Resumes at Phase 2. The mode C audit returns an Important finding marked as a Seed gap: two Seed items contradict each other. The controller does not paper over it in the design and does not hand-edit seed.yaml. It puts the possible Seed revision to the human, noting that a revision would invalidate the design and plan under Seed versioning, and waits.",
       "files": [],
-      "harness_note": "Simulate the mode C return: Important (Seed gap): acceptance criterion 2 ('a 50,000-row report completes in under 2 seconds') contradicts constraint 1 ('run on the existing single-threaded worker, no new infrastructure'); the design quietly assumes a second worker. Seed gaps: 1. Do not answer the human question; end the run at it. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "harness_note": "Simulate the mode C return: Important (Seed gap): acceptance criterion 2 ('a 50,000-row report completes in under 2 seconds') contradicts constraint 1 ('run on the existing single-threaded worker, no new infrastructure'); the design quietly assumes a second worker. Seed gaps: 1. Do not answer the human question; end the run at it. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. state.json also records seed_approved in steps_completed and a seed_approved_hash equal to the hash of the current seed.yaml.",
       "expectations": [
         "Dispatches the mode C audit before presenting, using references/reviewer-brief.md",
         "Recognizes the finding as a Seed gap rather than a design bug",
@@ -339,7 +343,7 @@
       "prompt": "continue the dev workflow on the --dry-run flag for the export command, the design is drafted in chat",
       "expected_output": "Resumes at Phase 2 on the bounded path (short in-chat design, no plan). Before dispatching the mode C audit it writes the draft design to design.md in the run directory and records its seed_hash in state.json, because the reviewer reads files. It then dispatches mode C (opus) with seed.yaml and design.md, no plan.md, and the current seed_hash passed in. The proof for each acceptance criterion comes from the design's testing section, so a missing plan task isn't flagged.",
       "files": [],
-      "harness_note": "Simulate: state.json at phase 2 with seed.yaml present and no design.md yet (the design exists only in the chat). Plan mode accepts writes to the run directory. The mode C return is a traceability table whose proof column cites the design's testing section for every criterion, 'No findings', Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt, and log every file write. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "harness_note": "Simulate: state.json at phase 2 with seed.yaml present and no design.md yet (the design exists only in the chat). Plan mode accepts writes to the run directory. The mode C return is a traceability table whose proof column cites the design's testing section for every criterion, 'No findings', Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt, and log every file write. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. state.json also records seed_approved in steps_completed and a seed_approved_hash equal to the hash of the current seed.yaml.",
       "expectations": [
         "Resumes at Phase 2 on the bounded path",
         "Writes the draft design to design.md in the run directory before dispatching the audit",
@@ -359,7 +363,7 @@
       "expected_output": "Resumes inside Phase 3 after the real-library spike fails. The skill stops, returns the run to Phase 2, and calls EnterPlanMode before continuing because the session is no longer in plan mode. It records the phase change in state.json and re-opens the design with the spike result as new input. It does not start implementation and does not need to read any reference file to do this.",
       "files": [],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
-      "harness_note": "Simulate: state.json at phase 3 on the architectural path, worktree exists, plan approved, Phase 2 named the HTTP library's retry hook as the highest-risk integration point. The spike result: the hook does not fire for streaming responses, so the design's retry placement is wrong. The permission mode is the default (not plan). The Seed is unchanged and still valid. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "harness_note": "Simulate: state.json at phase 3 on the architectural path, worktree exists, plan approved, Phase 2 named the HTTP library's retry hook as the highest-risk integration point. The spike result: the hook does not fire for streaming responses, so the design's retry placement is wrong. The permission mode is the default (not plan). The Seed is unchanged and still valid. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. state.json also records seed_approved in steps_completed and a seed_approved_hash equal to the hash of the current seed.yaml.",
       "expectations": [
         "Takes the harness's failed spike result as the Phase 3 spike outcome: it does not re-run the spike and does not start implementation",
         "Treats the failed spike as a stop and returns to Phase 2 instead of starting implementation",
@@ -386,6 +390,75 @@
         "Does not upgrade any task other than task 2",
         "Treats the yes as scoped to task 2 and does not carry it over to later BLOCKED tasks or fix rounds",
         "Reviewer dispatches use model opus"
+      ]
+    },
+    {
+      "id": 23,
+      "eval_name": "seed-gate-direct-path",
+      "prompt": "use the full dev workflow pipeline: add a --dry-run flag to the export command in src/export/. constraints: no new dependencies, don't change the default behavior. done when running with --dry-run prints the rows it would export and writes nothing.",
+      "expected_output": "Goal, constraints and success criteria are all stated, so the direct path runs: ouroboros_generate_seed with session_context, seed.yaml persisted, advisory Seed QA. The human has never seen the structured Seed, so the skill presents it (goal, acceptance criteria, constraints, QA verdict, open questions) with AskUserQuestion offering approve, request changes or abandon, and does not invoke superpowers:brainstorming until the human approves.",
+      "files": [],
+      "harness_note": "When the agent logs WOULD CALL ouroboros_qa, tell it to assume verdict PASS, Session: qa-231. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus. Simulate the human not yet answering the Seed approval gate; stop after it is presented.",
+      "expectations": [
+        "Takes the direct Seed path with no interview",
+        "Persists seed.yaml in the run directory",
+        "Runs Seed QA as an advisory check",
+        "Presents the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) rather than the full YAML",
+        "Asks for approval with AskUserQuestion offering approve, request changes and abandon",
+        "Does not invoke superpowers:brainstorming before the human approves",
+        "Does not record seed_approved before the human answers"
+      ]
+    },
+    {
+      "id": 24,
+      "eval_name": "seed-gate-request-changes",
+      "prompt": "use the full dev workflow pipeline: add a --dry-run flag to the export command in src/export/. constraints: no new dependencies, don't change the default behavior. done when running with --dry-run prints the rows it would export and writes nothing.",
+      "expected_output": "At the Seed approval gate the human asks for changes. On the direct path the skill merges the requested change verbatim into session_context and calls ouroboros_generate_seed again; it never hand-edits seed.yaml. The new Seed has a new hash, is persisted, goes through Seed QA, and the gate fires again. Nothing is recorded as approved until the human approves the new Seed.",
+      "files": [],
+      "harness_note": "Assume Seed QA returns PASS (Session: qa-241) both times. When the agent presents the first Seed at the gate, answer: 'request changes: it must also print a row count'. When it presents the regenerated Seed, stop. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. ~/.ouroboros/config.yaml sets models.pin: true and llm.qa_model: opus.",
+      "expectations": [
+        "Does not hand-edit seed.yaml",
+        "Merges the human's requested change verbatim into session_context and calls ouroboros_generate_seed again",
+        "Reloads the Ouroboros tools with ToolSearch before the second generate_seed call rather than assuming the earlier load holds",
+        "Re-persists seed.yaml so its hash changes",
+        "Runs Seed QA again on the new Seed",
+        "Presents the new Seed at the gate again instead of continuing to Phase 2",
+        "Does not record seed_approved or seed_approved_hash until the human approves"
+      ]
+    },
+    {
+      "id": 25,
+      "eval_name": "seed-gate-hash-mismatch-resume",
+      "prompt": "continue the dev workflow on the billing export feature",
+      "expected_output": "Resumes the in_progress run at phase 2. Recomputing the hash of seed.yaml shows it no longer equals seed_approved_hash, so the Seed was changed after the human approved it. The skill treats that as a Seed revision: it tells the human, and with their agreement returns to Phase 1 to regenerate the Seed. It does not offer to approve the edited file.",
+      "files": [],
+      "fixture": "build-fixtures.sh --seed-mismatch",
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names. Stop after the skill states what it will do and asks for the human's agreement.",
+      "expectations": [
+        "Finds the in_progress run and offers to resume it",
+        "Recomputes sha256 of seed.yaml and compares it with seed_approved_hash",
+        "Detects the mismatch and says the Seed changed after approval",
+        "Treats the mismatch as a Seed revision and asks the human's agreement to regenerate through Phase 1",
+        "Does not offer to approve the edited seed.yaml as it stands",
+        "Calls EnterPlanMode before continuing in Phase 1",
+        "Reloads the interview and generate_seed tools, because returning to Phase 1 needs them"
+      ]
+    },
+    {
+      "id": 26,
+      "eval_name": "seed-gate-legacy-run",
+      "prompt": "continue the dev workflow on the billing export feature",
+      "expected_output": "Resumes the in_progress run at phase 2. steps_completed has no seed_approved and state.json has no seed_approved_hash, so the run predates the Seed approval gate. Before design work continues it presents the Seed at the gate (in plan mode) and waits for approval. A run at Phase 3 or later would not be re-gated.",
+      "files": [],
+      "fixture": "build-fixtures.sh --legacy-seed",
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. Simulate the human not yet answering the gate; stop after it is presented.",
+      "expectations": [
+        "Finds the in_progress run and offers to resume it at phase 2",
+        "Notices there is no seed_approved step and no seed_approved_hash",
+        "Calls EnterPlanMode on re-entering Phase 2",
+        "Presents the Seed at the approval gate with AskUserQuestion before invoking superpowers:brainstorming",
+        "Does not invoke superpowers:brainstorming before the human approves",
+        "Does not require the interview or generate_seed tools to load unless the human asks for changes"
       ]
     }
   ]
