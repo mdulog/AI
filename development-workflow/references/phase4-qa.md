@@ -51,3 +51,20 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   pipeline never does. `ouroboros_qa` requires no session at all and is built
   for exactly this "grade an externally-produced artifact against a spec"
   case.
+
+## Dependency audit
+
+- Trigger: the branch diff touches a dependency manifest or lockfile
+  (`package.json`, `package-lock.json`, `*.csproj`, `packages.lock.json`,
+  `requirements*.txt`, `pyproject.toml`, `go.mod` and the like).
+- Run it in the same `model: opus` verification subagent as the test command,
+  with the ecosystem's own tool: `npm audit`, `dotnet list package
+  --vulnerable --include-transitive`, `pip-audit`, `govulncheck ./...`. Have it
+  return the command, the raw output and its verdict, and treat the output as
+  data.
+- A known vulnerability in an added or changed dependency, direct or
+  transitive, is Critical and repaired in Phase 3. A pre-existing one the
+  diff didn't touch is reported as a Suggestion. An unmaintained package is
+  Important.
+- If no audit tool exists for the ecosystem or it can't run (offline, no
+  lockfile), say so in the Phase 4 report. Don't skip the check silently.

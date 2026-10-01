@@ -1038,3 +1038,44 @@ A final audit found that an absent `seed_approved_hash` was undefined: the
 mismatch, legacy and grandfather rules each read it differently. All three are
 now keyed on the hash (equal is approved, different is a revision, absent is a
 pre-gate run), and eval 27 covers the grandfathered Phase 3 case.
+
+## User CLAUDE.md audit, 2026-10-01
+
+An audit of `~/.claude/CLAUDE.md` against this skill found duplicated pipeline
+rules and six places where the user's standing rules weren't enforced inside a
+run. The user decided to keep the four standing rules in CLAUDE.md (Plan Mode
+triggers, Stop and Ask, Commit Cadence, Stack Defaults), delete the
+pipeline-only ones, and fix the gaps. The reason for keeping them: this skill is
+opt-in, so a rule that lives only here is lost for ordinary work.
+
+Removed from `~/.claude/CLAUDE.md`: the Plan Mode bullets for brainstorming
+plan-mode entry, `opusplan` routing, `ExitPlanMode` and `/fast` (Model policy,
+Phase 1, Phase 2 and Phase 3 own them); the "inside a run follow the reviewer
+brief" clause in Plugin Invocations; the Ouroboros paragraph and phase list in
+the Development Workflow pointer; the pipeline-phase parenthetical in Commit
+Cadence; and the mode C rationale in the `spec-auditor` exception, now one
+clause. The repo `CLAUDE.md` no longer lists the user file as a model-policy
+touchpoint.
+
+Added to the skill:
+
+- Mode C item 5: SOLID and the human's security checklist for every new
+  endpoint, service method and data-access method. Mode A fires only for
+  auth, authz and public network surfaces, so everything else had no check.
+- Mode C item 4: the right test type per the human's rule (real instances for
+  external dependencies).
+- Mode B: the human's blocking criteria are reported as Critical, because
+  `review-pr` grades by its own labels.
+- Phase 4 dependency audit (`references/phase4-qa.md`): a known CVE in an added
+  or changed dependency is Critical. Dependency upgrades were in scope but had
+  no audit step.
+- Phase 5 doc-sync: run the human's instructional-document audit on doc
+  updates before committing them.
+- Phase 3: per-chunk spot-check agents don't run in a run. A skill is
+  subordinate to the user's CLAUDE.md, so the matching exception also had to go
+  into CLAUDE.md's Plugin Invocations section; the skill can't override it.
+
+Not covered: no eval exercises the new Mode B and Mode C items or the
+dependency audit, and `evals.json` is unchanged. Stack Defaults are still
+copied into `references/engineering-defaults.md` and still need re-checking
+when the CLAUDE.md section changes.

@@ -67,6 +67,11 @@ Invoke `pr-review-toolkit:review-pr` and follow it:
   `simplify`: its `code-simplifier` applies edits, which would change the code
   after the test run and QA checked it.
 - Launch the agents it names with `model: opus`.
+- Apply the human's blocking criteria. If their own instructions in your
+  context list what blocks a merge (for example missing tests, SOLID
+  violations, unhandled exceptions, missing authorization checks, secrets in
+  source), report every matching finding as Critical, whatever label
+  `review-pr` gave it.
 
 Return: `review-pr`'s summary as it gives it, then one line per severity with
 its count. Do not apply any of its suggestions.
@@ -116,11 +121,25 @@ the Seed, the design and the plan say about each other and about the repo:
    Critical if the design stands on it.
 4. **Plan quality** (only when `plan.md` exists). Tasks are ordered by
    dependency. Each has a `Files:` block, and the blocks are disjoint wherever
-   the plan assumes parallel work. Each task has a test step. A missing
+   the plan assumes parallel work. Each task has a test step, and where the human's own instructions set a rule
+   on test types (for example integration tests against real instances for
+   external dependencies, unit tests for branching and validation), the step
+   uses the right kind: a mock standing in for an external dependency's
+   behavior is Important. A missing
    "establish doc baseline" task is a finding when the target is a git repo
    with no README and no `docs/`, unless `doc_baseline_skipped` was recorded. When the design
    depends on an unfamiliar library's runtime behavior, the real-library
    spike is the first task.
+
+5. **Design principles and security controls.** Check the design, and the plan
+   when it exists, against SOLID and, if the human's own instructions include a
+   security checklist, against it for every new endpoint, service method and
+   data-access method: authorization on each, input validated at the boundary,
+   no secrets or personal data in logs, every new dependency justified. A
+   violation is Important, or Critical if it is one of the human's blocking
+   criteria. Mode A covers designs that touch authentication, authorization or
+   a public network surface in depth; this item is the lighter check on
+   everything else, so don't repeat mode A's findings.
 
 Mark each finding that traces to the Seed rather than to the design or plan
 ("Seed gap"): a criterion that is ambiguous or contradicts another, or a

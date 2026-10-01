@@ -215,7 +215,8 @@ Run these in order.
   the plan trace to each other (every acceptance criterion has a design
   element and something that proves it), agree with each other and with the
   current repo (every file path, function, table and command they name exists
-  as described), and that the plan is sound. The reviewer reads files, so
+  as described), that the plan is sound, and that both hold to SOLID and the human's
+  security controls. The reviewer reads files, so
   persist `design.md` (and `plan.md`) and record their `seed_hash` first (see
   the redirect rule below). If the security gate above also fires, dispatch
   both together; they are independent. If a reviewer subagent can't be
@@ -293,6 +294,10 @@ Run these in order.
   lists are disjoint. Read `references/phase3-execution.md` before dispatching:
   it has the parallel rules, what to do at SDD's Finish step, and how to
   dispatch the final review.
+- Per-chunk spot-check agents named in the human's own instructions (code
+  reviewer, simplifier and the like) don't run during a pipeline run. The
+  per-task reviews in `subagent-driven-development` and the Phase 4 review
+  cover them, and the simplifier would edit code after tests and QA.
 - **Stop and ask** (see the standalone Stop and ask section; it applies here
   too). On scope expansion, let brainstorming's own ratchet decide whether the
   path upgrades (see Error handling) rather than absorbing the extra work.
@@ -378,6 +383,12 @@ Run these in order.
   If `pr-review-toolkit` isn't installed, say the step was skipped, since that
   removes review coverage. A blocking finding is an implementation problem:
   repair it in Phase 3. It is never a reason to revise the Seed.
+- **Dependency audit**: if the diff adds or changes a dependency (a manifest
+  or lockfile), run the ecosystem's audit tool in the same `model: opus`
+  verification subagent as the test command. A known vulnerability in an added
+  or changed dependency is Critical; an unmaintained one is Important. Read
+  `references/phase4-qa.md` for the commands and what to do when no audit tool
+  exists.
 - Soft gate: a non-pass QA verdict (REVISE or FAIL) is reported as a new visible step,
   never auto-retried (Ralph is out of scope, and `ouroboros_qa` has no
   `auto_evolve` parameter to chain into it regardless). Repeated verdicts just
@@ -413,7 +424,10 @@ Run these three steps in this order.
    base branch and update `README.md` plus any `docs/` taxonomy the diff
    invalidates (or invoke a `/pre-commit`-style skill if the project has
    one). Commit doc updates on the branch before verification and finishing;
-   never push with the docs out of sync. Also check that the Seed's documentation criteria, which Phase 4 left out,
+   never push with the docs out of sync. Where the human's own instructions
+   require an audit of generated instructional documents (runbooks, ADRs, setup
+   guides), run it on those updates before committing them; it adds to the
+   checks here. Also check that the Seed's documentation criteria, which Phase 4 left out,
    are met by the doc updates, and record `doc_criteria_met` in
    `steps_completed`. If they aren't met, update the docs and re-check; if a
    criterion can't be met, stop and ask before verification or finishing.
