@@ -77,5 +77,8 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   pre-existing one the diff didn't touch is reported as a Suggestion.
 - If no audit tool exists for the ecosystem or it can't run (offline, no
   lockfile, an unsupported lockfile), report that to the human as a skipped
-  check. It is not a pass. Unmaintained packages aren't checked here; mode C
-  item 5 in `reviewer-brief.md` flags them when a design adds a dependency.
+  check. It is not a pass on its own: the human may accept the skip
+  explicitly, and Phase 4 doesn't complete until they rule. If they decline,
+  resolve the blocker (install the tool, get online, audit by hand) and re-run
+  the audit, or stop. Unmaintained packages aren't checked here; mode C item 5
+  in `reviewer-brief.md` flags them when a design adds a dependency.

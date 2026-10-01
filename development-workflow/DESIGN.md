@@ -1118,3 +1118,11 @@ fixes:
   Poetry and uv lockfiles aren't audited.
 - **Not covered.** No evals exercise the new reviewer-brief items or the
   dependency audit.
+
+## Review-coverage claim and skipped dependency audit (2026-10-01)
+
+A third audit of the follow-up commit found two High gaps. Both are fixed here. The Medium and Low findings from that audit (M1-M7, L1-L9; M8 was already fixed) are open.
+
+**Phase 4 review on the SDD path.** The user's `~/.claude/CLAUDE.md` said the Phase 4 review covers the per-chunk spot-checks "on every path", and `SKILL.md` said it covers them without qualification. Phase 4 skips its own review when `subagent-driven-development`'s final whole-branch review came back clean, so on that path the final review is the one that applies. `SKILL.md` now names SDD's per-task and final reviews, and the Phase 4 review whenever SDD's final review wasn't clean or SDD didn't run (always after a repair loop). The `~/.claude/CLAUDE.md` wording is the user's file and is changed separately.
+
+**A dependency audit that can't run.** `phase4-qa.md` called a skipped audit "not a pass", the `SKILL.md` gate list required the audit to pass, and the README said every check that ran must pass. Together they made an offline run, or a project whose only lockfile is `poetry.lock` or `uv.lock`, fail Phase 4 with no way out. The rule is now: a skipped audit is reported to the human, who may accept the skip explicitly, and Phase 4 doesn't complete until they rule. This matches how a REVISE verdict is handled. A missing `pr-review-toolkit` is still only a notice with no acceptance step, so the two skipped-check rules differ. Rejected: treating a skip as a pass (drops a security control silently) and as a hard fail (no exit for unsupported ecosystems).

@@ -298,9 +298,10 @@ Run these in order.
   dispatch the final review.
 - Per-chunk spot-check agents named in the human's own instructions (code
   reviewer, simplifier and the like) don't run during a pipeline run. The
-  per-task reviews in `subagent-driven-development`, where it runs, and the
-  Phase 4 review cover them, and the simplifier would edit code after it was
-  tested and reviewed.
+  per-task and final reviews in `subagent-driven-development`, where it runs,
+  and the Phase 4 review whenever SDD's final review wasn't clean or SDD didn't
+  run (always after a repair loop) cover them, and the simplifier would edit
+  code after it was tested and reviewed.
 - **Stop and ask** (see the standalone Stop and ask section; it applies here
   too). On scope expansion, let brainstorming's own ratchet decide whether the
   path upgrades (see Error handling) rather than absorbing the extra work.
@@ -361,7 +362,8 @@ Run these in order.
   0.80) is the semantic/spec-compliance check; `verification-before-completion`'s gate is
   the mechanical one. All of these must pass: the test command,
   `ouroboros_qa`, the dependency audit when it applies, and any code review
-  that ran. They cover different
+  that ran. A dependency audit that can't run is reported as skipped and
+  counts only if the human explicitly accepts the skip. They cover different
   concerns, and none substitutes for another. The same tool is advisory at
   Phase 1 (grading the Seed) and a gate here (grading the implementation).
 - **Code review**: dispatch a separate reviewer subagent to run
