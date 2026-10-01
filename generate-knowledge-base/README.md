@@ -1,6 +1,6 @@
 # generate-knowledge-base
 
-> Part of the [Claude Code Skills](../README.md) collection. Sibling skill: [`generate-prd`](../generate-prd/README.md) — turns transcripts into a PRD.
+> Part of the [Claude Code Skills](../README.md) collection. Sibling skills: [`generate-prd`](../generate-prd/README.md) — turns transcripts into a PRD — and [`development-workflow`](../development-workflow/README.md) — runs an engineering task through a gated, resumable pipeline.
 
 Generate a living knowledge base for any software project in a single command.
 

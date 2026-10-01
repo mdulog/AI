@@ -1,6 +1,6 @@
 # generate-prd
 
-> Part of the [Claude Code Skills](../README.md) collection. Sibling skill: [`generate-knowledge-base`](../generate-knowledge-base/README.md) — generates architecture docs and conventions for any codebase.
+> Part of the [Claude Code Skills](../README.md) collection. Sibling skills: [`generate-knowledge-base`](../generate-knowledge-base/README.md) — generates architecture docs and conventions for any codebase — and [`development-workflow`](../development-workflow/README.md) — runs an engineering task through a gated, resumable pipeline.
 
 Turn customer-conversation transcripts into a PRD via an unbounded discovery loop with a critic that questions the draft every iteration.
 
