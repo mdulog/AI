@@ -53,6 +53,7 @@ bash development-workflow/evals/files/build-fixtures.sh <dest> [flag]
 - `docs/` — Install guide and walkthrough. The user-facing README is `generate-prd/README.md`.
 
 **`development-workflow/`**
+- `README.md` — User-facing overview: pipeline diagram, gates, model split, requirements, install, eval sandbox.
 - `SKILL.md` — The skill definition: Phases 0–5, state tracking, artifact storage. Source of truth.
 - `references/*.md` — Detail loaded on demand from named phases (Phase 3 execution and worktree mechanics, Phase 4 QA call, reviewer brief and controller handling, Seed edge cases, Seed QA refinement, doc baseline and Phase 5 backstop, run lifecycle details, engineering defaults).
 - `DESIGN.md` — Dated design decisions and audit history. Not installed.
@@ -202,8 +203,8 @@ cp -r development-workflow/SKILL.md development-workflow/references ~/.claude/sk
 ### `development-workflow`
 - `SKILL.md` is the source of truth for the phase order, gates and state tracking; `references/*.md` are loaded from named phases and must stay consistent with it.
 - Keep the installed copy at `~/.claude/skills/development-workflow/` identical to the repo copy; it is a manual copy and drifts silently. In practice it also holds `DESIGN.md`; the install command above copies only `SKILL.md` and `references/`, which is enough to run the skill. `evals/` stays in the repo.
-- A model-policy change touches `SKILL.md`, `references/phase3-execution.md`, `references/phase4-qa.md`, `references/reviewer-brief.md` (it sets `model: opus` on reviewers), the model assertions in `evals/evals.json`, the model lines in this file's Model and Effort Policy and in `~/.claude/CLAUDE.md` (Plan Mode), the README Requirements section and Phase 3 row, and a dated section in `DESIGN.md`.
-- Phase 0 preflight changes and `evals/evals.json` move together with `SKILL.md`; the README states the eval count.
+- A model-policy change touches `SKILL.md`, `references/phase3-execution.md`, `references/phase4-qa.md`, `references/reviewer-brief.md` (it sets `model: opus` on reviewers), the model assertions in `evals/evals.json`, the model lines in this file's Model and Effort Policy and in `~/.claude/CLAUDE.md` (Plan Mode), the root README's Requirements section and Phase 3 row, `development-workflow/README.md` (its pipeline diagram, Model split and Requirements), and a dated section in `DESIGN.md`.
+- Phase 0 preflight changes and `evals/evals.json` move together with `SKILL.md`; both READMEs state the eval count (`development-workflow/README.md` in two places, the root README in its structure block), and a gate or state-field change also touches the fixtures in `evals/files/build-fixtures.sh`.
 
 ## Conventions
 
