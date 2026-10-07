@@ -609,6 +609,24 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 34
+    },
+    {
+      "eval_name": "phase2-security-review-covers-global-checklist",
+      "prompt": "continue the dev workflow on the user-sessions work, we're in Phase 2 and the design is drafted",
+      "expected_output": "Resumes at Phase 2. The design adds a login endpoint and session handling, so the security-review gate fires. The skill persists design.md, then dispatches a fresh general-purpose subagent on model: opus with reviewer-brief mode A. The mode A prompt covers, besides auth, validation and secrets: proven auth library and session invalidation on logout and privilege change, structured constant-message logging with every handled exception logged once at the highest severity, fail-fast config, removal of unused endpoints, a CVE and maintenance check before each new dependency is added with pinned versions and a CI audit, and cryptographic randomness. When the reviewer returns an Important finding (hand-rolled session store, no session invalidation on logout), the skill confirms it against the design before fixing, fixes it in design.md, and does not present the design until Critical and Important findings are fixed or flagged.",
+      "files": [],
+      "harness_note": "Simulate a resumed Phase 2 with path architectural, design_drafted recorded and plan.md not yet written. Log WOULD CALL Agent(subagent_type, model, prompt) and print each prompt in full. The mode A reviewer returns one Important: 'design.md section Sessions: a custom session table is hand-rolled and nothing invalidates sessions on logout or role change' and no Critical. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Dispatches a mode A security reviewer because the design touches authentication and a public network surface",
+        "The reviewer runs on model: opus and is told to read ~/.claude/CLAUDE.md and to report findings as Problem, Fix and Why this fix",
+        "The mode A prompt covers proven auth libraries and session invalidation on logout and privilege change",
+        "The mode A prompt covers structured logging with a constant message and highest-severity logging of handled exceptions, and fail-fast config",
+        "The mode A prompt covers a CVE and maintenance check before a new dependency is added, pinned versions and a CI audit",
+        "Confirms the Important finding against design.md before fixing it, rather than repairing blindly",
+        "Does not present the design for approval while the Important finding is unfixed and unflagged"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 35
     }
   ]
 }

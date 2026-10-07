@@ -95,6 +95,10 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   human defers it, as in the code review. This is best effort: a registry that
   can't be reached leaves the check undone, the subagent says so, and the
   human's OK isn't needed to skip it.
+- Pinning and CI: for a dependency the diff adds, an unpinned range such as `*`
+  or `latest` in an application's manifest, or a repo with no CI step that runs
+  the audit tool (look in `.github/workflows` and the like), is a Suggestion.
+  It never gates.
 - If no audit tool exists for the ecosystem or it can't run (offline, no
   lockfile, an unsupported lockfile), report that to the human as a skipped
   check. It is not a pass on its own: the human may accept the skip

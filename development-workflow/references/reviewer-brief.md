@@ -53,8 +53,19 @@ code exists. Cover at least:
 - Personal data: none in logs.
 - Data exposure: error messages, stack traces or internal ids returned to
   callers, and more fields returned than the request needs.
-- Transport encryption and weak cryptography.
-- Sessions, and anything a public network surface newly exposes.
+- Transport encryption and weak cryptography, including secrets or tokens
+  generated from a non-cryptographic random source.
+- Authentication through a proven library, never from scratch, and sessions
+  invalidated on logout and on a privilege change.
+- Logging: structured fields with a constant message, and every handled
+  exception logged once at the highest severity, none swallowed or demoted.
+- Required config that fails fast at startup when it is missing.
+- Unused endpoints, features and services removed, so the exposed surface is
+  only what the design needs.
+- Dependencies: each new one checked for known CVEs and for maintenance before
+  it is added (the design names that check), versions pinned for production,
+  and a dependency audit running in CI.
+- Anything a public network surface newly exposes.
 
 If the human's own instructions in your context include a security checklist,
 apply it as well. This is a design review only. Code is covered later by Phase 4
@@ -77,6 +88,9 @@ Invoke `pr-review-toolkit:review-pr` and follow it:
   `simplify`: its `code-simplifier` applies edits, which would change the code
   after the test run and QA checked it.
 - Launch the agents it names with `model: opus`.
+- Check instrumentation: a new external call, queue consumer or scheduled job
+  with no metric or trace is Important. The human's Engineering Standards ask
+  for it, and it is Critical only if their blocking list names it.
 - Apply the human's blocking criteria. If their own instructions in your
   context list what blocks a merge (for example missing tests, SOLID
   violations, unhandled exceptions, missing authorization checks, secrets in
@@ -147,11 +161,15 @@ the Seed, the design and the plan say about each other and about the repo:
    task. A greenfield TypeScript plan with no lint-setup task (typed ESLint with
    `@typescript-eslint/no-floating-promises`, `ignoreVoid: false`) is Important.
 5. **Design principles and security controls.** Check the design, and the plan
-   when it exists, against SOLID, and check that every new dependency is justified.
+   when it exists, against SOLID, and check that every new dependency is justified and that a known-CVE and
+   maintenance check comes before it is added.
    If the human's own instructions include a security checklist, also check
    it for every new endpoint, service method and data-access method:
    authorization on each, input validated at the boundary, no secrets or
-   personal data in logs. A violation is Important, or Critical when it breaks one of the human's
+   personal data in logs. Observability is never skipped, whatever mode A covers:
+   every new external call, queue consumer and scheduled job names the metrics
+   or traces that would show it failing, and a design or plan with none is
+   Important. A violation is Important, or Critical when it breaks one of the human's
    blocking criteria in a way a reviewer would block a merge on (a nit stays
    a Suggestion). When the controller says mode A runs at this gate, or ran
    at the spec gate and the plan (if any) leaves the design's auth and
