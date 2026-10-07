@@ -80,7 +80,11 @@ Run these in order.
    Every name must come back. If one is missing, say which and stop. On a new
    run nothing has been created, so there is no run directory and no todo
    list; on a resume leave `state.json` untouched. Failing here is cheaper
-   than failing in Phase 1 with state already written.
+   than failing in Phase 1 with state already written. Also check that Context7
+   loads: a ToolSearch for `context7` should return `resolve-library-id` and
+   `query-docs`. If it doesn't, tell the human that Phase 2 and 3 lookups have
+   no documentation source, and carry on. Unlike the Ouroboros tools this does
+   not stop the run.
 5. **Create the run** (new runs only). Create the run directory (see Artifact
    storage convention) with `state.json` (phase 0, `status` `in_progress`)
    and the `[dev-workflow]`-prefixed phase todo list (see State tracking).
@@ -650,9 +654,12 @@ any phase:
 ## Documentation lookups (Context7)
 
 When a library, framework, SDK, API, or CLI tool is involved in Phase 2 design
-or Phase 3 implementation, look it up with Context7
-(`mcp__plugin_context7_context7__resolve-library-id` +
-`mcp__plugin_context7_context7__query-docs`), even well-known ones. Never rely
+or Phase 3 implementation, look it up with Context7 (`resolve-library-id`, then
+`query-docs`), even well-known ones. The tool names carry a prefix that depends
+on how the server is installed (`mcp__context7__` or
+`mcp__plugin_context7_context7__`), so find them with ToolSearch `context7`
+instead of assuming one. A plugin-prefixed server may expose only an
+`authenticate` tool until it is signed in. Never rely
 on trained knowledge alone. `references/engineering-defaults.md` says what to
 use it for.
 

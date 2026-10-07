@@ -4,8 +4,8 @@ Loaded from `SKILL.md` (Phase 1 when the human asks about the stack, Phase 2 des
 
 ## Documentation lookups (Context7)
 
-- Always use Context7 (`mcp__plugin_context7_context7__resolve-library-id` +
-  `mcp__plugin_context7_context7__query-docs`) during Phase 2
+- Always use Context7 (`resolve-library-id`, then `query-docs`; find the tools
+  with ToolSearch `context7`, since their prefix varies by install) during Phase 2
   design or Phase 3 implementation when a library, framework, SDK, API, or
   CLI tool is involved — even well-known ones. Never rely on trained
   knowledge alone; training data may not reflect recent API changes,

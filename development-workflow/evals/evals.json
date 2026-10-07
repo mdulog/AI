@@ -643,6 +643,22 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 36
+    },
+    {
+      "eval_name": "preflight-context7-unavailable-warns-and-continues",
+      "prompt": "use the full dev workflow pipeline: add a Redis-backed rate limiter to our Express API, limit by API key, 100 requests per minute, done when the 101st request in a minute returns 429",
+      "expected_output": "Phase 0 classifies the request as in scope and the model check passes. The Ouroboros tools load. A ToolSearch for context7 returns only the authenticate and complete_authentication tools, not resolve-library-id or query-docs. The skill tells the human that Phase 2 and 3 library lookups will have no documentation source, and continues the run instead of stopping. It creates the run directory and todo list and proceeds to Phase 1. In a later library question it states that docs lookup is unavailable and does not present trained knowledge of Express or Redis APIs as verified.",
+      "files": [],
+      "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names; ToolSearch for 'context7' returns only mcp__plugin_context7_context7__authenticate and mcp__plugin_context7_context7__complete_authentication. Stop after the Phase 1 interview's first question.",
+      "expectations": [
+        "Searches for the Context7 tools with ToolSearch instead of calling a hardcoded tool name",
+        "Reports that Context7's lookup tools are unavailable and what that means for Phases 2 and 3",
+        "Does not stop the run or ask the human to fix Context7 before continuing",
+        "Creates the run directory and the [dev-workflow] todo list and moves into Phase 1",
+        "Does not present trained knowledge of library APIs as verified documentation"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 37
     }
   ]
 }
