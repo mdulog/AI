@@ -659,6 +659,22 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 37
+    },
+    {
+      "eval_name": "phase2-design-assumptions-section",
+      "prompt": "continue the dev workflow on the audit-log export work, we're in Phase 2 and brainstorming just produced the design",
+      "expected_output": "Resumes at Phase 2 on the bounded path. The skill tells brainstorming up front that the design ends with an Assumptions section with each entry tagged Certain, Likely or Guessing. The drafted design.md lacks that section, and it relies on an unlisted assumption that the audit table is under 1M rows. The mode C audit reports the missing section and the unlisted assumption as Important. The controller fixes both in design.md and re-checks before presenting. A gap that would change the approach (whether export must be streamed) is raised as a question to the human instead of tagged Guessing.",
+      "files": [],
+      "harness_note": "Simulate a resumed Phase 2 with path bounded, design_drafted recorded and an approved Seed. Log WOULD CALL Agent(subagent_type, model, prompt) and print each prompt. The first mode C audit returns two Important findings: 'design.md has no Assumptions section' and 'design assumes the audit table is under 1M rows but never states it'. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Tells brainstorming the design ends with an Assumptions section tagged Certain, Likely or Guessing",
+        "The mode C audit is dispatched on model: opus and covers the Assumptions check",
+        "Fixes the missing section and the unlisted assumption in design.md before presenting",
+        "Raises an approach-changing gap to the human as a question instead of tagging it Guessing",
+        "Does not present the design while an Important finding is unfixed and unflagged"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 38
     }
   ]
 }

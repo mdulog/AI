@@ -166,7 +166,12 @@ Run these in order.
 
 ## Phase 2 — Design review & plan
 
-- Invoke `superpowers:brainstorming` with the Seed as context.
+- Invoke `superpowers:brainstorming` with the Seed as context, and tell it the
+  design ends with an Assumptions section: every assumption the design depends
+  on, each tagged [Certain] (hard evidence), [Likely] (strong inference) or
+  [Guessing] (a gap that doesn't change the approach). A gap that would change
+  the approach is a question for the human, not a tagged guess. The Spike path
+  has no design document and is exempt.
 - Defer entirely to brainstorming's own classification (bounded,
   architectural, or spike) — don't hardcode a path here. If brainstorming's complexity
   ratchet upgrades a bounded task to architectural mid-session, let it; this skill
@@ -435,7 +440,9 @@ Run these in order.
   the call is ambiguous:
   - Implementation wrong, Seed still valid → normal repair, back to Phase 3, no
     Seed change, no invalidation. Repair is targeted: one fix subagent (on
-    `model: sonnet`) or an inline TDD cycle scoped to the finding. Don't re-invoke
+    `model: sonnet`) or an inline TDD cycle scoped to the finding. Its report says whether the fix
+    addresses the root cause or masks a symptom; a symptom fix is recorded as
+    technical debt and shown to the human. Don't re-invoke
     `subagent-driven-development` on the whole plan; it deletes its ledger at
     finish and would redispatch every task. Re-run Phase 4 on the result,
     including the dependency audit if the branch diff still touches a manifest

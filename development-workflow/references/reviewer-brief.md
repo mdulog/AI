@@ -178,6 +178,11 @@ the Seed, the design and the plan say about each other and about the repo:
    SOLID and the dependency check, because mode A covers the rest in depth.
    Otherwise this item covers them too, including the plan's own auth
    content.
+6. **Assumptions.** `design.md` has an Assumptions section, each entry tagged
+   [Certain], [Likely] or [Guessing]. A missing section, or an assumption the
+   design visibly depends on that isn't listed, is Important. An untagged entry
+   is a Suggestion. A [Guessing] that would change the approach should have been
+   a question to the human, and is Important.
 
 Mark each finding that traces to the Seed rather than to the design or plan
 ("Seed gap"): a criterion that is ambiguous or contradicts another, or a
