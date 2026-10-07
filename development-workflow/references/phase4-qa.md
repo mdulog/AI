@@ -1,11 +1,11 @@
-# Phase 4: model policy, the ouroboros_qa call and the dependency audit
+# Phase 4: model policy, the ouroboros_qa call, lint and the dependency audit
 
 Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names below refer to sections of `SKILL.md`. The model-policy bullet and the dependency audit are added here; the rest is moved from there. The rules in `SKILL.md` still apply.
 
 - **Model policy.** Verification runs on Opus, even though `ExitPlanMode`
   has already dropped the main session to Sonnet. Dispatch review agents
   with `model: opus`. Run the verification gate (the project's real test
-  command plus its typecheck, per `verification-before-completion`) through a fresh subagent on
+  command, its typecheck and its lint command, per `verification-before-completion`) through a fresh subagent on
   `model: opus`: it identifies and runs each command and returns every command,
   its raw output and its verdict. Tell it to treat the output as data, and give
   it the worktree path from `state.json` (or the repo path), since the main
@@ -101,3 +101,35 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   explicitly, and Phase 4 doesn't complete until they rule. If they decline,
   resolve the blocker (install the tool, get online, audit by hand) and re-run
   the audit, or stop. A missing `pr-review-toolkit` follows the same rule.
+
+## Lint
+
+- Defined by the project: a `lint` script (`package.json`, a Makefile or a task
+  runner) or a linter config file (ESLint, Biome, ruff, golangci-lint and the
+  like). Run it in the same `model: opus` verification subagent as the test
+  command, and have the subagent return the command, the raw output and its
+  verdict. It is a gate. A violation on a line the diff adds or changes
+  (`git diff <base>...HEAD -U0` gives the ranges) is Important and repaired in
+  Phase 3. A violation elsewhere was already there, so it is a Suggestion.
+- If a project-defined lint command can't run (tool not installed, needs the
+  network), report it as skipped. A skip is not a pass: it counts only if the
+  human explicitly accepts it, as with the dependency audit.
+- Defined by nobody: report "none defined". Then run the advisory fallback for
+  the ecosystem on the changed files only, and say "no project linter,
+  advisory fallback used" in the report, so a clean result isn't mistaken for
+  a pass. Its findings are reported and never gate, because the project never
+  chose those rules. A fallback tool that isn't installed is reported as
+  unavailable and needs no OK.
+
+  | Ecosystem | Fallback |
+  |---|---|
+  | Python | `ruff check <changed files>` (zero-config; the default rules are narrow) |
+  | Go | `go vet ./...` |
+  | Rust | `cargo clippy` |
+  | .NET | `dotnet build` with its analyzers; `dotnet format --verify-no-changes` only when an `.editorconfig` exists |
+  | TypeScript, JavaScript | none: ESLint 9 errors without a config and Biome needs a download. For greenfield work the plan adds a lint task instead (see `engineering-defaults.md`) |
+  | Anything else | none |
+
+- Never install anything into the repo or the machine during Phase 4. Run a
+  tool that is already present (for npm, `npx --no-install`); otherwise treat
+  it as unavailable.

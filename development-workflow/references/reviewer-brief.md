@@ -136,7 +136,8 @@ the Seed, the design and the plan say about each other and about the repo:
    finding when the target is a git repo with no README and no `docs/`,
    unless `doc_baseline_skipped` was recorded. When the design depends on an
    unfamiliar library's runtime behavior, the real-library spike is the first
-   task.
+   task. A greenfield TypeScript plan with no lint-setup task (typed ESLint with
+   `@typescript-eslint/no-floating-promises`, `ignoreVoid: false`) is Important.
 5. **Design principles and security controls.** Check the design, and the plan
    when it exists, against SOLID, and check that every new dependency is justified.
    If the human's own instructions include a security checklist, also check

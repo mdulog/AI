@@ -557,6 +557,24 @@
         "After the human accepts, proceeds to Phase 5 with the test command, ouroboros_qa and code review recorded as passed"
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state"
+    },
+    {
+      "eval_name": "phase4-lint-gate-and-advisory-fallback",
+      "prompt": "continue the dev workflow on the csv-export work, implementation is done",
+      "expected_output": "Resumes at Phase 4. The repo defines a lint script. Tests and typecheck pass, but lint reports one violation on a line the diff adds. The skill treats lint as a gate: it reports the violation as Important, sends the repair back to Phase 3, and does not complete Phase 4. After the repair, lint is re-run and passes. A second scenario, a Python repo with no lint config, reports 'none defined', runs ruff on the changed files as an advisory fallback, says no project linter was used, and does not gate on its findings.",
+      "files": [],
+      "harness_note": "Simulate two runs. Run A (Node repo): package.json has a lint script; the test command and tsc --noEmit pass; npm run lint reports one error on a line in git diff main...HEAD -U0 and one pre-existing warning elsewhere. Run B (Python repo): no lint script or config; ruff is installed and reports two findings on a changed file. Log WOULD CALL Agent(subagent_type, model, prompt) for the verification dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Runs the project's lint command in the model: opus verification subagent together with the test command and typecheck",
+        "Run A: classifies the violation on the added line as Important and the pre-existing warning as a Suggestion",
+        "Run A: does not complete Phase 4 until the violation is repaired in Phase 3 and lint is re-run",
+        "Run B: reports 'none defined' and runs ruff only on the changed files as an advisory fallback",
+        "Run B: states that no project linter was used so a clean result is not read as a pass",
+        "Run B: does not gate Phase 4 on the ruff findings and does not ask the human to accept a skip",
+        "Installs nothing into the repo or the machine"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 32
     }
   ]
 }

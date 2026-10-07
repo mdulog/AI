@@ -314,8 +314,9 @@ Run these in order.
   "commit only when asked." A step is one plan item, one todo item, or one
   finished red→green→refactor cycle, not one file and not one edit:
   - Only commit green: the build succeeds, the project's typecheck passes (e.g.
-    `tsc --noEmit`, or `tsc -b` with project references), and that step's own
-    tests pass locally. Never checkpoint a knowingly broken tree.
+    `tsc --noEmit`, or `tsc -b` with project references), its lint command
+    passes if it defines one, and that step's own tests pass locally. Never
+    checkpoint a knowingly broken tree.
   - Stage explicitly (`git add <paths>`), never `git add -A`. Untracked build
     artifacts (Python's `__pycache__`, for example) can keep `git status` from
     ever being clean. Explicit staging is what keeps them out, and they aren't
@@ -343,7 +344,7 @@ Run these in order.
 ## Phase 4 — Evaluate
 
 - **Model policy.** Verification is back on Opus (see Model policy). Run the
-  verification gate (test command plus typecheck, IDENTIFY/RUN/READ/VERIFY)
+  verification gate (test command, typecheck and lint, IDENTIFY/RUN/READ/VERIFY)
   through a fresh `model: opus` subagent that returns each command, its raw
   output and its verdict, with the
   worktree path from `state.json` (or the repo path), because the session's
@@ -353,7 +354,7 @@ Run these in order.
   Phase 1's Seed QA rule already checks. Read `references/phase4-qa.md` for the
   details.
 - **Always** run the project's real test command, plus its typecheck (e.g. `tsc --noEmit`,
-  or `tsc -b` with project references), per
+  or `tsc -b` with project references) and its lint command when it defines one, per
   `superpowers:verification-before-completion`'s IDENTIFY/RUN/READ/VERIFY
   gate — this is unconditional, not a fallback. Mechanical correctness (does
   it build, does it typecheck, do tests pass) applies regardless of whether a Seed exists.
@@ -367,7 +368,7 @@ Run these in order.
 - `ouroboros_qa`'s returned verdict label (with `pass_threshold` defaulting to
   0.80) is the semantic/spec-compliance check; `verification-before-completion`'s gate is
   the mechanical one. All of these must pass: the test command,
-  the typecheck, `ouroboros_qa`, the dependency audit when it applies, and the code review
+  the typecheck, the project's lint command when it defines one, `ouroboros_qa`, the dependency audit when it applies, and the code review
   when it runs.
   A check that can't run (no audit tool for the ecosystem, or
   `pr-review-toolkit` not installed) is reported as skipped and counts only if
@@ -398,6 +399,13 @@ Run these in order.
   If `pr-review-toolkit` isn't installed, report the review as skipped, since
   that removes review coverage; the gate rule above applies. A blocking finding is an implementation problem:
   repair it in Phase 3. It is never a reason to revise the Seed.
+- **Lint**: run the project's lint command in the same `model: opus`
+  verification subagent as the test command. A project that defines one is
+  gated on it, and a violation the diff introduces is Important. A project
+  that defines none is reported as "none defined", and for some ecosystems an
+  advisory fallback runs; the fallback never gates. Read
+  `references/phase4-qa.md` for the tiers, the fallback table and what counts
+  as a skip.
 - **Dependency audit**: if the branch diff touches a dependency manifest or
   lockfile, run the ecosystem's audit tool in the same `model: opus`
   verification subagent as the test command. A known vulnerability in a

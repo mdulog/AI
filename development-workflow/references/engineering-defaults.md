@@ -28,6 +28,10 @@ Loaded from `SKILL.md` (Phase 1 when the human asks about the stack, Phase 2 des
   Testcontainers needs a Docker-compatible runtime, so keep integration tests
   in a separate Vitest project. An existing project's tests follow whatever
   test convention that project already uses, not this default.
+- For greenfield TypeScript, the plan includes a task that sets up ESLint with
+  typed linting and `@typescript-eslint/no-floating-promises` (`ignoreVoid:
+  false`). `tsc` doesn't catch a floating promise, and once the project defines
+  a lint command, Phases 3 and 4 gate on it.
 - These are defaults for new/greenfield work only — always defer to what the
   target project's own conventions or existing codebase specifies. If the
   human's own instructions (their `CLAUDE.md`) name a different stack than
