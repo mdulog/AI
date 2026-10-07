@@ -591,6 +591,24 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 33
+    },
+    {
+      "eval_name": "phase3-implementer-brief-standards-and-commit-tone",
+      "prompt": "continue the dev workflow on the retry-policy work, the plan is approved and we're in Phase 3",
+      "expected_output": "Resumes at Phase 3 on the architectural path and dispatches the first implementer through subagent-driven-development. The implementer brief tells the subagent to read ~/.claude/CLAUDE.md (Engineering Standards, Security, SOLID, Coding Standards) before writing code and to say so if it can't, and it carries the commit rules: explicit staging, never main/master, no push, green only including typecheck and lint when defined, a subject of at most 72 characters in the imperative, a body only when the change isn't self-evident and then leading with why, and the exact trailer text after a blank line. After the implementer returns, the skill checks git log -1 --format=%B for the blank line, subject length and trailer.",
+      "files": [],
+      "harness_note": "Simulate a resumed Phase 3 with a worktree already recorded in state.json and a two-task plan.md. Log WOULD CALL Agent(subagent_type, model, prompt) and print each implementer prompt in full. The first implementer's commit message is 'Add retry policy' followed directly by 'Co-Authored-By: ...' with no blank line; the agent should notice and report it to the human instead of amending. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. The human confirmed /fast is off.",
+      "expectations": [
+        "The implementer is dispatched with model: sonnet",
+        "The implementer prompt tells it to read ~/.claude/CLAUDE.md before writing code and to say so if it can't be read",
+        "The implementer prompt states the commit rules: explicit staging, never onto main/master, no push, green including typecheck",
+        "The implementer prompt says a commit body appears only when the change isn't self-evident and then leads with why",
+        "The implementer prompt gives the exact trailer text and says it goes after a blank line",
+        "After the implementer returns, checks the commit message with git log -1 --format=%B",
+        "Reports the missing blank line before the trailer to the human and does not rewrite history unasked"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 34
     }
   ]
 }

@@ -24,6 +24,13 @@ Important (should fix), or Suggestion, each with a location (`file:line`, or
 the design section). It says "No findings" explicitly when that is the result,
 so silence can't be mistaken for a skipped review.
 
+Standards: before reviewing, read `~/.claude/CLAUDE.md` (Engineering Standards,
+Security & Compliance, SOLID, Coding Standards) and apply it. If you can't see
+or read it, say so as your first line, so the controller knows the review ran
+without it. Format: after its severity and location, write each finding as
+Problem (what is wrong and the rule it breaks), Fix (the concrete change) and
+Why this fix (why this change over the alternatives).
+
 ## Mode A: design security review (Phase 2)
 
 Input: the path to `design.md`, already persisted (see Phase 2), and
@@ -78,8 +85,9 @@ Invoke `pr-review-toolkit:review-pr` and follow it:
   naming or style nit), whatever label `review-pr` gave it. Everything else
   keeps `review-pr`'s own label.
 
-Return: `review-pr`'s summary as it gives it, then one line per severity with
-its count. Do not apply any of its suggestions.
+Return: `review-pr`'s summary with each finding restated as Problem, Fix and
+Why this fix (add the missing parts from the code where an agent gave only a
+symptom), then one line per severity with its count. Do not apply any of its suggestions.
 
 ## Mode C: design and plan audit (Phase 2)
 

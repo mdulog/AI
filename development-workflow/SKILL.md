@@ -323,8 +323,8 @@ Run these in order.
     a failure.
   - Commit only, never push — pushing happens in Phase 5.
   - `subagent-driven-development` implementers commit on their own, so put
-    these commit rules in each implementer's brief and check their commit
-    messages afterward. Read `references/phase3-execution.md` for the exact
+    these commit rules, and a line to read the global standards, in each
+    implementer's brief and check their commit messages afterward. Read `references/phase3-execution.md` for the exact
     brief and checks.
   - Never auto-commit onto `main`/`master`. The worktree isolated above
     covers this when the target is a git repo; if worktree isolation was

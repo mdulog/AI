@@ -74,6 +74,12 @@ Loaded from `SKILL.md` (Phase 3, before dispatching implementers). Section names
     `git log -1 --format=%B` for the blank line, the subject length, and that
     exact trailer text. If a message breaks the rules, report it to the human
     instead of rewriting history unasked.
+  - Also put two things in each implementer's brief. First: read
+    `~/.claude/CLAUDE.md` (Engineering Standards, Security & Compliance, SOLID,
+    Coding Standards) before writing code, and say so if it can't be read.
+    Second: the commit subject says what changed, and a body appears only when
+    the change isn't self-evident, in which case it leads with why in one or
+    two plain sentences. Check both on the same `git log -1 --format=%B` read.
 
 ## SDD workspace
 
