@@ -627,6 +627,22 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 35
+    },
+    {
+      "eval_name": "phase5-pr-description-leads-with-why",
+      "prompt": "continue the dev workflow on the retry-policy work, Phase 4 passed and the docs are in sync, finish it up",
+      "expected_output": "Resumes at Phase 5 after the doc-sync check and the verification run. At finishing-a-development-branch the human picks 'push and open a PR'. The skill drafts the PR description first: it leads with why the change was made (clients retried instantly and amplified an outage), not a restatement of the diff, uses plain declarative sentences, avoids launch-style phrasing ('excited to announce', 'seamlessly', 'game-changer'), and ends with the attribution line. It shows the description and confirms before pushing or creating the PR, because pushing and PR creation stay manual, confirm-first steps.",
+      "files": [],
+      "harness_note": "Simulate: state.json phase 5 with doc_criteria_met recorded, the verification subagent just returned green on model: opus, and the human answers 'push and open a PR' at the finishing choice. The diff adds src/client/retry.ts with exponential backoff and jitter. Do not actually push; log WOULD RUN for git push and gh pr create. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Drafts the PR description before any push or PR creation",
+        "The first sentence of the description states why the change was made, not what files changed",
+        "Contains none of: excited to announce, game-changer, seamlessly, delve, moreover, furthermore",
+        "Ends with the attribution line the harness gives for pull requests",
+        "Shows the description to the human and confirms before logging a git push or gh pr create"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 36
     }
   ]
 }

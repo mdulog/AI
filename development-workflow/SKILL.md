@@ -256,7 +256,9 @@ Run these in order.
 - Redirect brainstorming's output to `design.md` and writing-plans's output to
   `plan.md`, both in the run directory, overriding each skill's own default
   doc-repo location (both skills' own conventions explicitly allow this
-  override). Persist them under the same plan-mode write rule as `seed.yaml`
+  override). Write both as documents under the human's tone rules for documents:
+  headers and structure are fine, claims are declarative, and there is no
+  lead-in such as "This document describes". Persist them under the same plan-mode write rule as `seed.yaml`
   above. Write the draft design to `design.md` and record its `seed_hash` in
   `state.json` before dispatching the design and plan audit or the security
   review, because the reviewers read the file. That includes the bounded
@@ -481,7 +483,10 @@ Run these three steps in this order.
    comes first. Phase 3's rule against committing onto `main`/`master` does
    not cover a local merge, so if the human picks a merge into the default
    branch, name that explicitly and get confirmation. When finishing is
-   done, set `state.json`'s `status` to `complete`.
+   done, set `state.json`'s `status` to `complete`. A PR description follows
+   the human's tone rules for posts: it leads with why the change was made
+   instead of restating the diff, avoids launch-style phrasing, and ends with
+   the attribution line the harness gives for pull requests.
 
 - Before step 1: if the target is a git repo with no doc baseline, establish
   it as the backstop unless Phase 2 recorded `doc_baseline_skipped`. Read the
