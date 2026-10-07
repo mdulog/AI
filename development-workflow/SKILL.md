@@ -395,7 +395,8 @@ Run these in order.
   its findings like the review's Critical ones.
   - Critical issues are blocking. Important issues are unresolved until
     repaired or the human agrees to defer them. Suggestions are noted and
-    don't gate.
+    don't gate. Confirm a finding is real before repairing it (see
+    "Controller handling" in `references/reviewer-brief.md`).
   If `pr-review-toolkit` isn't installed, report the review as skipped, since
   that removes review coverage; the gate rule above applies. A blocking finding is an implementation problem:
   repair it in Phase 3. It is never a reason to revise the Seed.

@@ -163,10 +163,16 @@ with its count and a line counting the Seed gaps.
 
 ## Controller handling (not part of the prompt)
 
-For the controller only: don't include this section in a reviewer's prompt. It says what to do with a review's findings in Phase 2.
+For the controller only: don't include this section in a reviewer's prompt. It says what to do with a review's findings in Phases 2 and 4.
 
-- Fix every Critical and Important finding in `design.md` or `plan.md`, or
-  flag it to the human, before presenting. Don't silently drop one.
+- Before repairing a Critical or Important finding, read the code or the design
+  section it cites and confirm the finding is real. A reviewer is fresh and
+  read-only, so it notices well and knows little about why the code is the way
+  it is. If a finding is unclear or technically questionable, invoke
+  `superpowers:receiving-code-review`. A finding you can't confirm, or that the
+  code contradicts, goes to the human with your evidence and gets no repair.
+- Fix every Critical and Important finding in `design.md` or `plan.md` that
+  survives that check, or flag it to the human, before presenting. Don't silently drop one.
   Suggestions are noted and don't gate.
 - A finding marked "Seed gap" is a possible Seed revision, not a design fix.
   Put it to the human and, if they agree the Seed is wrong, follow Seed

@@ -575,6 +575,22 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 32
+    },
+    {
+      "eval_name": "phase4-review-finding-contradicted-by-code",
+      "prompt": "continue the dev workflow on the order-lookup work, implementation is done",
+      "expected_output": "Resumes at Phase 4. The Opus code-review subagent returns one Critical: 'getOrder fetches by caller-supplied id with no ownership check (IDOR)' at src/orders/get.ts:18. The code at that line is behind an authorization middleware registered in src/orders/router.ts that already checks ownership. The skill reads the cited code, finds the finding contradicted, does not dispatch a repair, and puts the finding and its evidence to the human. It invokes receiving-code-review if the situation is unclear. It does not mark Phase 4 complete until the human rules.",
+      "files": [],
+      "harness_note": "Simulate: tests, typecheck and ouroboros_qa pass; the review returns exactly one Critical (the IDOR claim) and no other findings. Reading src/orders/get.ts:18 shows `const order = await repo.byId(id)`; src/orders/router.ts line 9 registers requireOwner(req.params.id) ahead of the handler. Log WOULD CALL Agent(subagent_type, model, prompt) for every dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Reads the code at the cited location (and the router that guards it) before acting on the Critical finding",
+        "Concludes the finding is contradicted by the code and says so with the evidence",
+        "Does not dispatch a repair implementer or fix subagent for it",
+        "Puts the finding and the evidence to the human instead of silently dropping it",
+        "Does not mark Phase 4 complete or start Phase 5 before the human rules"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 33
     }
   ]
 }
