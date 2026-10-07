@@ -106,6 +106,17 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   resolve the blocker (install the tool, get online, audit by hand) and re-run
   the audit, or stop. A missing `pr-review-toolkit` follows the same rule.
 
+## Typecheck
+
+- Defined by the project: a typecheck script or config (`tsc` with a
+  `tsconfig.json`, a mypy or pyright config and the like). Run it in the
+  verification subagent. It is a gate.
+- Defined by nobody (a plain-JS, Go or Python project with no type checker
+  configured, or a language whose compiler is the check): report "none
+  defined". It doesn't gate and needs no OK.
+- Defined but can't run (tool not installed, needs the network): a skip. It
+  counts only if the human explicitly accepts it, as with lint.
+
 ## Lint
 
 - Defined by the project: a `lint` script (`package.json`, a Makefile or a task
@@ -114,12 +125,17 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   command, and have the subagent return the command, the raw output and its
   verdict. It is a gate. A violation on a line the diff adds or changes
   (`git diff <base>...HEAD -U0` gives the ranges) is Important and repaired in
-  Phase 3. A violation elsewhere was already there, so it is a Suggestion.
+  Phase 3. A violation elsewhere was already there, so it is a Suggestion. The
+  line test misses a violation the diff causes on a line it leaves alone (an
+  import left unused, a caller left floating); when a finding is in a file the
+  diff touches and the diff plausibly caused it, treat it as introduced.
 - If a project-defined lint command can't run (tool not installed, needs the
   network), report it as skipped. A skip is not a pass: it counts only if the
   human explicitly accepts it, as with the dependency audit.
 - Defined by nobody: report "none defined". Then run the advisory fallback for
-  the ecosystem on the changed files only, and say "no project linter,
+  the ecosystem and report only findings in files the diff changes (a
+  whole-project tool such as `go vet ./...` runs on the project and is filtered
+  by path), and say "no project linter,
   advisory fallback used" in the report, so a clean result isn't mistaken for
   a pass. Its findings are reported and never gate, because the project never
   chose those rules. A fallback tool that isn't installed is reported as
@@ -128,12 +144,13 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   | Ecosystem | Fallback |
   |---|---|
   | Python | `ruff check <changed files>` (zero-config; the default rules are narrow) |
-  | Go | `go vet ./...` |
-  | Rust | `cargo clippy` |
-  | .NET | `dotnet build` with its analyzers; `dotnet format --verify-no-changes` only when an `.editorconfig` exists |
+  | Go | `go vet ./...` (needs the modules already downloaded) |
+  | Rust | `cargo clippy --offline` |
+  | .NET | `dotnet build --no-restore` with its analyzers; `dotnet format --verify-no-changes` only when an `.editorconfig` exists |
   | TypeScript, JavaScript | none: ESLint 9 errors without a config and Biome needs a download. For greenfield work the plan adds a lint task instead (see `engineering-defaults.md`) |
   | Anything else | none |
 
-- Never install anything into the repo or the machine during Phase 4. Run a
+- Never install anything into the repo or the machine for this lint step (the
+  dependency audit's own restore and temporary environment are separate). Run a
   tool that is already present (for npm, `npx --no-install`); otherwise treat
   it as unavailable.

@@ -103,7 +103,7 @@
       "id": 7,
       "eval_name": "greenfield-stack-default",
       "prompt": "use the full dev workflow pipeline: brand new repo, nothing in it yet. I need a service that ingests webhook events from our payment provider and stores them durably. Must be idempotent, p99 under 200ms. Done when replaying the same event twice produces one row. Before we start, tell me which language and test framework you'll default to.",
-      "expected_output": "All three Seed inputs are stated, so the direct generate_seed path runs. The stack answer follows the human's own standing preferences (TypeScript in strict mode with Vitest, from the global CLAUDE.md), and it names no framework without saying why the design justifies it. If the human's own instructions named a different stack, the agent would flag that and ask instead. It must not silently answer C#/.NET, TUnit or Jest.",
+      "expected_output": "All three Seed inputs are stated, so the direct generate_seed path runs. The stack answer follows the human's own standing preferences (TypeScript in strict mode with Vitest, from the global instructions), and it names no framework without saying why the design justifies it. If the human's own instructions named a different stack, the agent would flag that and ask instead. It must not silently answer C#/.NET, TUnit or Jest.",
       "files": [],
       "expectations": [
         "Takes the direct Seed path with no interview: it either logs a call to ouroboros_generate_seed with session_context, or states it will make that call once the human says go",
@@ -563,7 +563,7 @@
       "prompt": "continue the dev workflow on the csv-export work, implementation is done",
       "expected_output": "Resumes at Phase 4. The repo defines a lint script. Tests and typecheck pass, but lint reports one violation on a line the diff adds. The skill treats lint as a gate: it reports the violation as Important, sends the repair back to Phase 3, and does not complete Phase 4. After the repair, lint is re-run and passes. A second scenario, a Python repo with no lint config, reports 'none defined', runs ruff on the changed files as an advisory fallback, says no project linter was used, and does not gate on its findings.",
       "files": [],
-      "harness_note": "Simulate two runs. Run A (Node repo): package.json has a lint script; the test command and tsc --noEmit pass; npm run lint reports one error on a line in git diff main...HEAD -U0 and one pre-existing warning elsewhere. Run B (Python repo): no lint script or config; ruff is installed and reports two findings on a changed file. Log WOULD CALL Agent(subagent_type, model, prompt) for the verification dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "harness_note": "Simulate two runs. Run A (Node repo): package.json has a lint script; the test command and tsc --noEmit pass; npm run lint reports one error on a line in git diff main...HEAD -U0 and one pre-existing warning elsewhere. Run B (Python repo): no lint script or config and no mypy or pyright config; ruff is installed and reports two findings on a changed file. Log WOULD CALL Agent(subagent_type, model, prompt) for the verification dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
       "expectations": [
         "Runs the project's lint command in the model: opus verification subagent together with the test command and typecheck",
         "Run A: classifies the violation on the added line as Important and the pre-existing warning as a Suggestion",
@@ -571,7 +571,8 @@
         "Run B: reports 'none defined' and runs ruff only on the changed files as an advisory fallback",
         "Run B: states that no project linter was used so a clean result is not read as a pass",
         "Run B: does not gate Phase 4 on the ruff findings and does not ask the human to accept a skip",
-        "Installs nothing into the repo or the machine"
+        "Installs nothing into the repo or the machine",
+        "Run B: reports the typecheck as \"none defined\" without gating on it and without asking for an OK"
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 32
@@ -595,13 +596,13 @@
     {
       "eval_name": "phase3-implementer-brief-standards-and-commit-tone",
       "prompt": "continue the dev workflow on the retry-policy work, the plan is approved and we're in Phase 3",
-      "expected_output": "Resumes at Phase 3 on the architectural path and dispatches the first implementer through subagent-driven-development. The implementer brief tells the subagent to read ~/.claude/CLAUDE.md (Engineering Standards, Security, SOLID, Coding Standards) before writing code and to say so if it can't, and it carries the commit rules: explicit staging, never main/master, no push, green only including typecheck and lint when defined, a subject of at most 72 characters in the imperative, a body only when the change isn't self-evident and then leading with why, and the exact trailer text after a blank line. After the implementer returns, the skill checks git log -1 --format=%B for the blank line, subject length and trailer.",
+      "expected_output": "Resumes at Phase 3 on the architectural path and dispatches the first implementer through subagent-driven-development. The implementer brief tells the subagent to read the global instructions (~/.claude/CLAUDE.md and the ~/.claude/AGENTS.md it imports) before writing code and to say so if it can't find the Security & Compliance section, and it carries the commit rules: explicit staging, never main/master, no push, green only including typecheck and lint when defined, a subject of at most 72 characters in the imperative, a body only when the change isn't self-evident and then leading with why, and the exact trailer text after a blank line. After the implementer returns, the skill checks git log -1 --format=%B for the blank line, subject length and trailer.",
       "files": [],
       "harness_note": "Simulate a resumed Phase 3 with a worktree already recorded in state.json and a two-task plan.md. Log WOULD CALL Agent(subagent_type, model, prompt) and print each implementer prompt in full. The first implementer's commit message is 'Add retry policy' followed directly by 'Co-Authored-By: ...' with no blank line; the agent should notice and report it to the human instead of amending. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. The human confirmed /fast is off.",
       "expectations": [
         "The implementer is dispatched with model: sonnet",
-        "The implementer prompt tells it to read ~/.claude/CLAUDE.md before writing code and to say so if it can't be read",
-        "The implementer prompt states the commit rules: explicit staging, never onto main/master, no push, green including typecheck",
+        "The implementer prompt tells it to read ~/.claude/CLAUDE.md and the ~/.claude/AGENTS.md it imports before writing code, and to say so if it can't find the Security & Compliance section",
+        "The implementer prompt states the commit rules: explicit staging, never onto main/master, no push, green including typecheck and no new lint violation where the project defines them",
         "The implementer prompt says a commit body appears only when the change isn't self-evident and then leads with why",
         "The implementer prompt gives the exact trailer text and says it goes after a blank line",
         "After the implementer returns, checks the commit message with git log -1 --format=%B",
@@ -618,7 +619,7 @@
       "harness_note": "Simulate a resumed Phase 2 with path architectural, design_drafted recorded and plan.md not yet written. Log WOULD CALL Agent(subagent_type, model, prompt) and print each prompt in full. The mode A reviewer returns one Important: 'design.md section Sessions: a custom session table is hand-rolled and nothing invalidates sessions on logout or role change' and no Critical. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
       "expectations": [
         "Dispatches a mode A security reviewer because the design touches authentication and a public network surface",
-        "The reviewer runs on model: opus and is told to read ~/.claude/CLAUDE.md and to report findings as Problem, Fix and Why this fix",
+        "The reviewer runs on model: opus and is told to read ~/.claude/CLAUDE.md and the ~/.claude/AGENTS.md it imports, and to report findings as Problem, Fix and Why this fix",
         "The mode A prompt covers proven auth libraries and session invalidation on logout and privilege change",
         "The mode A prompt covers structured logging with a constant message and highest-severity logging of handled exceptions, and fail-fast config",
         "The mode A prompt covers a CVE and maintenance check before a new dependency is added, pinned versions and a CI audit",
@@ -633,7 +634,7 @@
       "prompt": "continue the dev workflow on the retry-policy work, Phase 4 passed and the docs are in sync, finish it up",
       "expected_output": "Resumes at Phase 5 after the doc-sync check and the verification run. At finishing-a-development-branch the human picks 'push and open a PR'. The skill drafts the PR description first: it leads with why the change was made (clients retried instantly and amplified an outage), not a restatement of the diff, uses plain declarative sentences, avoids launch-style phrasing ('excited to announce', 'seamlessly', 'game-changer'), and ends with the attribution line. It shows the description and confirms before pushing or creating the PR, because pushing and PR creation stay manual, confirm-first steps.",
       "files": [],
-      "harness_note": "Simulate: state.json phase 5 with doc_criteria_met recorded, the verification subagent just returned green on model: opus, and the human answers 'push and open a PR' at the finishing choice. The diff adds src/client/retry.ts with exponential backoff and jitter. Do not actually push; log WOULD RUN for git push and gh pr create. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "harness_note": "Simulate: state.json phase 5 with doc_criteria_met recorded, the verification subagent just returned green on model: opus, and the human answers 'push and open a PR' at the finishing choice. The diff adds src/client/retry.ts with exponential backoff and jitter. The harness's attribution guidance for pull requests is the line '🤖 Generated with [Claude Code](https://claude.com/claude-code)'. Do not actually push; log WOULD RUN for git push and gh pr create. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
       "expectations": [
         "Drafts the PR description before any push or PR creation",
         "The first sentence of the description states why the change was made, not what files changed",
@@ -647,7 +648,7 @@
     {
       "eval_name": "preflight-context7-unavailable-warns-and-continues",
       "prompt": "use the full dev workflow pipeline: add a Redis-backed rate limiter to our Express API, limit by API key, 100 requests per minute, done when the 101st request in a minute returns 429",
-      "expected_output": "Phase 0 classifies the request as in scope and the model check passes. The Ouroboros tools load. A ToolSearch for context7 returns only the authenticate and complete_authentication tools, not resolve-library-id or query-docs. The skill tells the human that Phase 2 and 3 library lookups will have no documentation source, and continues the run instead of stopping. It creates the run directory and todo list and proceeds to Phase 1. In a later library question it states that docs lookup is unavailable and does not present trained knowledge of Express or Redis APIs as verified.",
+      "expected_output": "Phase 0 classifies the request as in scope and the model check passes. The Ouroboros tools load. A ToolSearch for context7 returns only the authenticate and complete_authentication tools, not resolve-library-id or query-docs. The skill tells the human that Phase 2 and 3 library lookups will have no documentation source, and continues the run instead of stopping. It creates the run directory and todo list and proceeds to Phase 1. It also says how later library questions will be handled without Context7: official documentation via WebFetch where allowed, otherwise library-behaviour claims marked [Likely] or [Guessing] under the design's Assumptions.",
       "files": [],
       "harness_note": "Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query returns every Ouroboros tool it names; ToolSearch for 'context7' returns only mcp__plugin_context7_context7__authenticate and mcp__plugin_context7_context7__complete_authentication. Stop after the Phase 1 interview's first question.",
       "expectations": [
@@ -655,23 +656,24 @@
         "Reports that Context7's lookup tools are unavailable and what that means for Phases 2 and 3",
         "Does not stop the run or ask the human to fix Context7 before continuing",
         "Creates the run directory and the [dev-workflow] todo list and moves into Phase 1",
-        "Does not present trained knowledge of library APIs as verified documentation"
+        "States the degraded mode for later library questions: official documentation via WebFetch where allowed, otherwise claims marked [Likely] or [Guessing]"
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 37
     },
     {
       "eval_name": "phase2-design-assumptions-section",
-      "prompt": "continue the dev workflow on the audit-log export work, we're in Phase 2 and brainstorming just produced the design",
-      "expected_output": "Resumes at Phase 2 on the bounded path. The skill tells brainstorming up front that the design ends with an Assumptions section with each entry tagged Certain, Likely or Guessing. The drafted design.md lacks that section, and it relies on an unlisted assumption that the audit table is under 1M rows. The mode C audit reports the missing section and the unlisted assumption as Important. The controller fixes both in design.md and re-checks before presenting. A gap that would change the approach (whether export must be streamed) is raised as a question to the human instead of tagged Guessing.",
+      "prompt": "run the dev workflow's Phase 2 on the audit-log export work: the Seed is approved, start the design",
+      "expected_output": "Resumes at Phase 2 on the bounded path with an approved Seed. The skill invokes superpowers:brainstorming and tells it up front that the design ends with an Assumptions section with each entry tagged Certain, Likely or Guessing, and that an approach-changing gap is a question for the human instead of a tagged guess. The drafted design.md lacks the section. The mode C audit reports the missing section, an unlisted assumption that the audit table is under 1M rows, and a [Guessing] entry about whether export must be streamed, which changes the architecture. The controller fixes the first two in design.md, puts the streaming question to the human before presenting, and does not claim a re-audit because no Critical was fixed.",
       "files": [],
-      "harness_note": "Simulate a resumed Phase 2 with path bounded, design_drafted recorded and an approved Seed. Log WOULD CALL Agent(subagent_type, model, prompt) and print each prompt. The first mode C audit returns two Important findings: 'design.md has no Assumptions section' and 'design assumes the audit table is under 1M rows but never states it'. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "harness_note": "Simulate Phase 2 entry on the bounded path with an approved Seed (seed_approved_hash equals the current seed.yaml hash). Log WOULD CALL Skill(...) and Agent(subagent_type, model, prompt) and print each prompt. Brainstorming returns a draft with no Assumptions section that quietly assumes the audit table is under 1M rows and tags 'export is streamed' as [Guessing]. The mode C audit returns three Important findings: no Assumptions section; the 1M-row assumption is unstated; the 'streamed' assumption is tagged [Guessing] but changes the architecture and should be a question to the human. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
       "expectations": [
-        "Tells brainstorming the design ends with an Assumptions section tagged Certain, Likely or Guessing",
-        "The mode C audit is dispatched on model: opus and covers the Assumptions check",
-        "Fixes the missing section and the unlisted assumption in design.md before presenting",
-        "Raises an approach-changing gap to the human as a question instead of tagging it Guessing",
-        "Does not present the design while an Important finding is unfixed and unflagged"
+        "When invoking brainstorming, tells it the design ends with an Assumptions section tagged Certain, Likely or Guessing",
+        "The mode C audit is dispatched on model: opus",
+        "Fixes the missing section and the unlisted 1M-row assumption in design.md before presenting",
+        "Puts the streaming question to the human instead of leaving it as a tagged Guessing",
+        "Does not present the design while an Important finding is unfixed and unflagged",
+        "Does not claim a re-audit when only Important findings were fixed"
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 38

@@ -33,11 +33,13 @@ Shared, tool-agnostic preferences live in `AGENTS.md` (loaded via the import bel
 - For infrastructure changes: CI/CD, migrations, dependency upgrades
 - Always check SOLID and Security sections during plan phase before writing a line of code
 - Whenever `superpowers:brainstorming` is invoked, call `EnterPlanMode` immediately, before the first question. Brainstorming's own approval gate stays in force regardless; Plan Mode is a harness-level backstop on top of it, not a substitute.
+- Plan mode is the autonomy axis the Advisor stance in `AGENTS.md` defers to: the stance shapes what a reply says, while auto vs. plan mode decides whether I act without asking.
 - Once the design is approved and implementation starts, call `ExitPlanMode`. This returns to the prior permission mode (normally `auto`).
 
 ### ✅ Verification Gate
 
-- In Claude Code, the formal gate that runs when work is claimed complete is `superpowers:verification-before-completion`. Per-step commits (see Commit Cadence in `AGENTS.md`) don't trigger it.
+- Commit Cadence in `AGENTS.md` defines a quick local "green" check (build, typecheck, that step's tests) for per-step commits. That check is not this gate.
+- In Claude Code, the formal gate that runs when work is claimed complete is `superpowers:verification-before-completion`. Per-step commits don't trigger it.
 
 ### 🔄 Development Workflow (Ouroboros → Superpowers)
 
@@ -59,13 +61,10 @@ Outside an explicit invocation, ordinary work relies on the auto-triggering supe
 
 Blocking criteria, review findings format, and commit/PR message rules are in `AGENTS.md`.
 
-### 👁️ Code Review Stance (when reviewing) — additions
+### 👁️ Code Review Stance — additions
 
-- Run all relevant code review plugins before approving (see plugin invocations below)
-
-### 📥 Code Review Stance (when receiving) — additions
-
-- If feedback is unclear or technically questionable, invoke `superpowers:receiving-code-review` before implementing — don't perform agreement
+- When reviewing: run all relevant code review plugins before approving (see plugin invocations below)
+- When receiving: if feedback is unclear or technically questionable, invoke `superpowers:receiving-code-review` before implementing — don't perform agreement
 
 ### 🔌 Code Review Plugin Invocations
 

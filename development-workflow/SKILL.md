@@ -324,9 +324,11 @@ Run these in order.
 - Commit after every completed step — this overrides the harness's default
   "commit only when asked." A step is one plan item, one todo item, or one
   finished red→green→refactor cycle, not one file and not one edit:
-  - Only commit green: the build succeeds, the project's typecheck passes (e.g.
-    `tsc --noEmit`, or `tsc -b` with project references), its lint command
-    passes if it defines one, and that step's own tests pass locally. Never
+  - Only commit green: the build succeeds, the project's typecheck passes if it
+    defines one (e.g. `tsc --noEmit`, or `tsc -b` with project references), the
+    step adds no lint violation if the project defines a lint command (a
+    violation already on the base branch doesn't block, or no step could commit
+    in a repo with lint debt), and that step's own tests pass locally. Never
     checkpoint a knowingly broken tree.
   - Stage explicitly (`git add <paths>`), never `git add -A`. Untracked build
     artifacts (Python's `__pycache__`, for example) can keep `git status` from
@@ -364,7 +366,7 @@ Run these in order.
   model and is configured for Opus through `~/.ouroboros/config.yaml`, which
   Phase 1's Seed QA rule already checks. Read `references/phase4-qa.md` for the
   details.
-- **Always** run the project's real test command, plus its typecheck (e.g. `tsc --noEmit`,
+- **Always** run the project's real test command, plus its typecheck when it defines one (e.g. `tsc --noEmit`,
   or `tsc -b` with project references) and its lint command when it defines one, per
   `superpowers:verification-before-completion`'s IDENTIFY/RUN/READ/VERIFY
   gate — this is unconditional, not a fallback. Mechanical correctness (does
@@ -379,10 +381,11 @@ Run these in order.
 - `ouroboros_qa`'s returned verdict label (with `pass_threshold` defaulting to
   0.80) is the semantic/spec-compliance check; `verification-before-completion`'s gate is
   the mechanical one. All of these must pass: the test command,
-  the typecheck, the project's lint command when it defines one, `ouroboros_qa`, the dependency audit when it applies, and the code review
+  the typecheck when defined, no new lint violation when the project defines a lint command, `ouroboros_qa`, the dependency audit when it applies, and the code review
   when it runs.
-  A check that can't run (no audit tool for the ecosystem, or
-  `pr-review-toolkit` not installed) is reported as skipped and counts only if
+  A check that can't run (no audit tool for the ecosystem,
+  `pr-review-toolkit` not installed, or a project-defined typecheck or lint
+  command that can't run) is reported as skipped and counts only if
   the human explicitly accepts the skip. If they decline, resolve the blocker
   and re-run the check, or stop. They cover different
   concerns, and none substitutes for another. The same tool is advisory at
@@ -405,8 +408,10 @@ Run these in order.
   (on each turn and each commit), so there is nothing to invoke for it. Treat
   its findings like the review's Critical ones.
   - Critical issues are blocking. Important issues are unresolved until
-    repaired or the human agrees to defer them. Suggestions are noted and
-    don't gate. Confirm a finding is real before repairing it (see
+    repaired or the human agrees to defer them. The human may also rule a
+    finding (Critical or Important) invalid once you show your evidence that
+    the code contradicts it; note that ruling in the Phase 4 report.
+    Suggestions are noted and don't gate. Confirm a finding is real before repairing it (see
     "Controller handling" in `references/reviewer-brief.md`).
   If `pr-review-toolkit` isn't installed, report the review as skipped, since
   that removes review coverage; the gate rule above applies. A blocking finding is an implementation problem:
@@ -497,7 +502,7 @@ Run these three steps in this order.
    done, set `state.json`'s `status` to `complete`. A PR description follows
    the human's tone rules for posts: it leads with why the change was made
    instead of restating the diff, avoids launch-style phrasing, and ends with
-   the attribution line the harness gives for pull requests.
+   the attribution line the harness gives for pull requests, if it gives one.
 
 - Before step 1: if the target is a git repo with no doc baseline, establish
   it as the backstop unless Phase 2 recorded `doc_baseline_skipped`. Read the
@@ -666,7 +671,10 @@ or Phase 3 implementation, look it up with Context7 (`resolve-library-id`, then
 on how the server is installed (`mcp__context7__` or
 `mcp__plugin_context7_context7__`), so find them with ToolSearch `context7`
 instead of assuming one. A plugin-prefixed server may expose only an
-`authenticate` tool until it is signed in. Never rely
+`authenticate` tool until it is signed in. If Phase 0 found no Context7 tools, read the library's
+official documentation with WebFetch where it is allowed. Otherwise mark each
+library-behaviour claim in `design.md` as [Likely] or [Guessing] under
+Assumptions, and say in the plan which ones no lookup verified. Never rely
 on trained knowledge alone. `references/engineering-defaults.md` says what to
 use it for.
 

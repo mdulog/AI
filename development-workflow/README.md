@@ -26,7 +26,7 @@ Phase 3  Isolate & execute      Sonnet
    │     git worktree → TDD per task → one commit per green step (never pushes)
    ▼
 Phase 4  Evaluate               Opus verifiers
-   │     real test command + typecheck + lint + ouroboros_qa on the diff + pr-review-toolkit code review
+   │     real test command + typecheck and lint where defined + ouroboros_qa on the diff + pr-review-toolkit code review
    │     + dependency audit when a manifest or lockfile changed
    │     (code review is skipped when subagent-driven-development's final review was clean,
    │      and always runs after a repair loop)

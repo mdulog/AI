@@ -65,8 +65,9 @@ Loaded from `SKILL.md` (Phase 3, before dispatching implementers). Section names
   - `subagent-driven-development` implementers commit on their own, so put
     these commit rules (explicit staging, never onto `main`/`master`, the
     subject-line rule, no push, and only committing green: the build succeeds,
-    the project's typecheck passes, its lint command passes if it defines one,
-    and the step's own tests pass) in each
+    the project's typecheck passes if it defines one, the step adds no lint
+    violation if the project defines a lint command, and the step's own tests
+    pass) in each
     implementer's brief. Add one more: any
     trailer (such as `Co-Authored-By`) goes after a blank line, never directly
     under the subject, or git folds it into the subject. Give the implementer
@@ -74,12 +75,15 @@ Loaded from `SKILL.md` (Phase 3, before dispatching implementers). Section names
     `git log -1 --format=%B` for the blank line, the subject length, and that
     exact trailer text. If a message breaks the rules, report it to the human
     instead of rewriting history unasked.
-  - Also put two things in each implementer's brief. First: read
-    `~/.claude/CLAUDE.md` (Engineering Standards, Security & Compliance, SOLID,
-    Coding Standards) before writing code, and say so if it can't be read.
-    Second: the commit subject says what changed, and a body appears only when
-    the change isn't self-evident, in which case it leads with why in one or
-    two plain sentences. Check both on the same `git log -1 --format=%B` read.
+  - Also put two things in each implementer's brief. First: read the human's
+    global instructions, `~/.claude/CLAUDE.md` and the `~/.claude/AGENTS.md` it
+    imports (the Engineering Standards, Security & Compliance, SOLID and Coding
+    Standards sections are in `AGENTS.md`), before writing code, and say so in
+    the report if the Security & Compliance section can't be found. Second: the
+    commit subject says what changed, and a body appears only when the change
+    isn't self-evident, in which case it leads with why in one or two plain
+    sentences. Check the first in the implementer's report and the second with
+    `git log -1 --format=%B`.
 
 ## SDD workspace
 

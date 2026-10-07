@@ -24,10 +24,12 @@ Important (should fix), or Suggestion, each with a location (`file:line`, or
 the design section). It says "No findings" explicitly when that is the result,
 so silence can't be mistaken for a skipped review.
 
-Standards: before reviewing, read `~/.claude/CLAUDE.md` (Engineering Standards,
-Security & Compliance, SOLID, Coding Standards) and apply it. If you can't see
-or read it, say so as your first line, so the controller knows the review ran
-without it. Format: after its severity and location, write each finding as
+Standards: before reviewing, read the human's global instructions:
+`~/.claude/CLAUDE.md` and the `~/.claude/AGENTS.md` it imports with `@` (the
+Engineering Standards, Security & Compliance, SOLID and Coding Standards
+sections are in `AGENTS.md`), and apply them. If you can't find the Security &
+Compliance section, say so as your first line, so the controller knows the
+review ran without the standards. Format: after its severity and location, write each finding as
 Problem (what is wrong and the rule it breaks), Fix (the concrete change) and
 Why this fix (why this change over the alternatives).
 

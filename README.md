@@ -250,7 +250,7 @@ The skill is a `SKILL.md` plus on-demand `references/` that acts as a resumable 
 - `"model": "opusplan"` in `~/.claude/settings.json`, so planning runs on Opus and implementation on Sonnet. Keep `/fast` off during Phase 3, since it forces the main session onto Opus. Implementers are dispatched on Sonnet. Reviewers and auditors are dispatched on Opus, and the test gate in Phases 4 and 5 runs in an Opus subagent because the main session is on Sonnet by then. Phase 0 checks the setting, including a project-level override.
 - For `ouroboros_qa` to run on Opus, `~/.ouroboros/config.yaml` sets `models.pin: true` and `llm.qa_model: opus`. Without it QA runs on Sonnet, and the skill tells you so before the Seed check.
 
-The skill carries its own model policy, commit rules, and review order, so it doesn't depend on this repo's [`CLAUDE.md`](CLAUDE.md). Its greenfield stack defaults (TypeScript in strict mode with Vitest; no default framework) copy the ones in the author's global `~/.claude/CLAUDE.md`. If your own `CLAUDE.md` names a different stack, the skill asks which to use.
+The skill carries its own model policy, commit rules, and review order, so it doesn't depend on this repo's [`CLAUDE.md`](CLAUDE.md). Its greenfield stack defaults (TypeScript in strict mode with Vitest; no default framework) copy the ones in the author's global instructions (`~/.claude/AGENTS.md`). If your own `CLAUDE.md` names a different stack, the skill asks which to use.
 
 ## Quick start
 
