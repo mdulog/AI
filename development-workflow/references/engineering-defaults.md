@@ -1,6 +1,6 @@
 # Engineering defaults: Context7 lookups and stack defaults
 
-Loaded from `SKILL.md` (Phase 1 when the human asks about the stack, Phase 2 design, and Phase 3 implementation when a library or stack decision comes up). Section names below refer to sections of `SKILL.md`. Text is moved verbatim from there; the rules in `SKILL.md` still apply.
+Loaded from `SKILL.md` (Phase 1 when the human asks about the stack, Phase 2 design, and Phase 3 implementation when a library or stack decision comes up). Section names below refer to sections of `SKILL.md`. Most text is moved verbatim from there; the stack section below is expanded from the summary in `SKILL.md`. The rules in `SKILL.md` still apply.
 
 ## Documentation lookups (Context7)
 
@@ -16,15 +16,18 @@ Loaded from `SKILL.md` (Phase 1 when the human asks about the stack, Phase 2 des
 
 ## Language & stack defaults
 
-- Primary language: C# / .NET (latest LTS) for new/greenfield work in
-  Phase 3, unless the target project specifies otherwise.
-- Frontend: React/TypeScript for new/greenfield UI work. For an existing
-  project, match whatever's already there instead (Angular, Vue, etc.) —
-  check the repo (`package.json`, `*.csproj`, existing components) before
-  assuming greenfield applies.
-- Default test framework: TUnit (.NET) and Jest (React) for new/greenfield
-  work. An existing project's tests follow whatever test convention that
-  project already uses, not this default.
+- Primary language: TypeScript (strict mode, latest stable version) for
+  new/greenfield work in Phase 3, unless the target project specifies
+  otherwise. No default framework: pick the lightest one the design
+  justifies and say why in the plan.
+- Frontend: no default. Check the repo first (`package.json`, existing
+  components) and match whatever's already there. Ask which framework only
+  when there is nothing to match.
+- Default test framework: Vitest for new/greenfield work. Integration tests
+  run against real instances (e.g. Testcontainers) rather than mocks;
+  Testcontainers needs a Docker-compatible runtime, so keep integration tests
+  in a separate Vitest project. An existing project's tests follow whatever
+  test convention that project already uses, not this default.
 - These are defaults for new/greenfield work only — always defer to what the
   target project's own conventions or existing codebase specifies. If the
   human's own instructions (their `CLAUDE.md`) name a different stack than

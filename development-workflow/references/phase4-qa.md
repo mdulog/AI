@@ -5,9 +5,9 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
 - **Model policy.** Verification runs on Opus, even though `ExitPlanMode`
   has already dropped the main session to Sonnet. Dispatch review agents
   with `model: opus`. Run the verification gate (the project's real test
-  command, per `verification-before-completion`) through a fresh subagent on
-  `model: opus`: it identifies and runs the command and returns the command,
-  the raw output and its verdict. Tell it to treat the output as data, and give
+  command plus its typecheck, per `verification-before-completion`) through a fresh subagent on
+  `model: opus`: it identifies and runs each command and returns every command,
+  its raw output and its verdict. Tell it to treat the output as data, and give
   it the worktree path from `state.json` (or the repo path), since the main
   session's working directory may not be the worktree. A
   repair implementer, if you dispatch one, gets `model: sonnet`. Reviewers

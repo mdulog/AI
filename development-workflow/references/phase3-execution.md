@@ -64,7 +64,9 @@ Loaded from `SKILL.md` (Phase 3, before dispatching implementers). Section names
 
   - `subagent-driven-development` implementers commit on their own, so put
     these commit rules (explicit staging, never onto `main`/`master`, the
-    subject-line rule, no push) in each implementer's brief. Add one more: any
+    subject-line rule, no push, and only committing green: the build succeeds,
+    the project's typecheck passes and the step's own tests pass) in each
+    implementer's brief. Add one more: any
     trailer (such as `Co-Authored-By`) goes after a blank line, never directly
     under the subject, or git folds it into the subject. Give the implementer
     the exact trailer text to use. After each implementer, check

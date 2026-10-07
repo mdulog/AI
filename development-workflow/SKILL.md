@@ -313,8 +313,9 @@ Run these in order.
 - Commit after every completed step — this overrides the harness's default
   "commit only when asked." A step is one plan item, one todo item, or one
   finished red→green→refactor cycle, not one file and not one edit:
-  - Only commit green: the build succeeds and that step's own tests pass
-    locally. Never checkpoint a knowingly broken tree.
+  - Only commit green: the build succeeds, the project's typecheck passes (e.g.
+    `tsc --noEmit`, or `tsc -b` with project references), and that step's own
+    tests pass locally. Never checkpoint a knowingly broken tree.
   - Stage explicitly (`git add <paths>`), never `git add -A`. Untracked build
     artifacts (Python's `__pycache__`, for example) can keep `git status` from
     ever being clean. Explicit staging is what keeps them out, and they aren't
@@ -342,18 +343,20 @@ Run these in order.
 ## Phase 4 — Evaluate
 
 - **Model policy.** Verification is back on Opus (see Model policy). Run the
-  test-command gate (IDENTIFY/RUN/READ/VERIFY) through a fresh `model: opus`
-  subagent that returns the command, the raw output and its verdict, with the
+  verification gate (test command plus typecheck, IDENTIFY/RUN/READ/VERIFY)
+  through a fresh `model: opus` subagent that returns each command, its raw
+  output and its verdict, with the
   worktree path from `state.json` (or the repo path), because the session's
   working directory may not be the worktree; don't re-judge it on Sonnet.
   Dispatch review agents on `model: opus` too. `ouroboros_qa` picks its own
   model and is configured for Opus through `~/.ouroboros/config.yaml`, which
   Phase 1's Seed QA rule already checks. Read `references/phase4-qa.md` for the
   details.
-- **Always** run the project's real test command per
+- **Always** run the project's real test command, plus its typecheck (e.g. `tsc --noEmit`,
+  or `tsc -b` with project references), per
   `superpowers:verification-before-completion`'s IDENTIFY/RUN/READ/VERIFY
   gate — this is unconditional, not a fallback. Mechanical correctness (does
-  it build, do tests pass) applies regardless of whether a Seed exists.
+  it build, does it typecheck, do tests pass) applies regardless of whether a Seed exists.
 - **Additionally** — Phase 1's invariant guarantees a Seed always exists for
   any in-scope task — invoke `ouroboros_qa` on the complete, unelided diff plus
   the real test output, graded against the Seed's code-checkable acceptance
@@ -364,7 +367,7 @@ Run these in order.
 - `ouroboros_qa`'s returned verdict label (with `pass_threshold` defaulting to
   0.80) is the semantic/spec-compliance check; `verification-before-completion`'s gate is
   the mechanical one. All of these must pass: the test command,
-  `ouroboros_qa`, the dependency audit when it applies, and the code review
+  the typecheck, `ouroboros_qa`, the dependency audit when it applies, and the code review
   when it runs.
   A check that can't run (no audit tool for the ecosystem, or
   `pr-review-toolkit` not installed) is reported as skipped and counts only if
@@ -373,7 +376,7 @@ Run these in order.
   concerns, and none substitutes for another. The same tool is advisory at
   Phase 1 (grading the Seed) and a gate here (grading the implementation).
 - **Code review**: dispatch a separate reviewer subagent to run
-  `pr-review-toolkit:review-pr`, in addition to the test command and
+  `pr-review-toolkit:review-pr`, in addition to the test command, the typecheck and
   `ouroboros_qa`. Skip it only if `subagent-driven-development`'s
   final whole-branch review actually ran and came back with no Critical or
   Important findings and no Minor that the reviewer recommends fixing before
@@ -641,8 +644,9 @@ use it for.
 
 ## Language & stack defaults
 
-Defaults apply to new/greenfield work only: C# / .NET, React/TypeScript, TUnit
-and Jest. An existing project's own conventions win. If the human's own
+Defaults apply to new/greenfield work only: TypeScript and Vitest. Pick the
+lightest framework the design justifies and say why; for a UI, check the repo
+first and ask only when there is nothing to match. An existing project's own conventions win. If the human's own
 instructions (their `CLAUDE.md`) name a different stack, say so during Phase 2
 and ask; don't silently pick one. Read `references/engineering-defaults.md` for
 the full list, and also when the human asks about the stack in Phases 0–1.

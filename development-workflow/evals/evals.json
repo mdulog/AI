@@ -103,13 +103,13 @@
       "id": 7,
       "eval_name": "greenfield-stack-default",
       "prompt": "use the full dev workflow pipeline: brand new repo, nothing in it yet. I need a service that ingests webhook events from our payment provider and stores them durably. Must be idempotent, p99 under 200ms. Done when replaying the same event twice produces one row. Before we start, tell me which language and test framework you'll default to.",
-      "expected_output": "All three Seed inputs are stated, so the direct generate_seed path runs. The stack answer follows the human's own standing preferences (C#/.NET and TUnit from the global CLAUDE.md), or the agent explicitly flags that the skill's defaults conflict with them. It must not silently answer TypeScript/Jest.",
+      "expected_output": "All three Seed inputs are stated, so the direct generate_seed path runs. The stack answer follows the human's own standing preferences (TypeScript in strict mode with Vitest, from the global CLAUDE.md), and it names no framework without saying why the design justifies it. If the human's own instructions named a different stack, the agent would flag that and ask instead. It must not silently answer C#/.NET, TUnit or Jest.",
       "files": [],
       "expectations": [
         "Takes the direct Seed path with no interview: it either logs a call to ouroboros_generate_seed with session_context, or states it will make that call once the human says go",
         "States a language and test framework default in its answer",
-        "The stated default is C#/.NET with TUnit, OR the agent flags a conflict between the skill and the global preferences and asks which to use",
-        "Does not silently default to TypeScript/Node/Jest",
+        "The stated default is TypeScript (strict mode) with Vitest, with no framework named unless the agent says why the design justifies it",
+        "Does not silently default to C#/.NET, TUnit or Jest",
         "Does not write anything into the target repo during Phases 1-2",
         "If it generates the Seed (it may instead defer that call until the human says go), it then stops at the Seed approval gate before Phase 2 and does not start brainstorming until the human approves"
       ],
