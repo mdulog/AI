@@ -26,7 +26,7 @@ Phase 3  Isolate & execute      Sonnet
    │     git worktree → TDD per task → one commit per green step (never pushes)
    ▼
 Phase 4  Evaluate               Opus verifiers
-   │     real test command + ouroboros_qa on the diff + pr-review-toolkit code review
+   │     real test command + typecheck + lint + ouroboros_qa on the diff + pr-review-toolkit code review
    │     + dependency audit when a manifest or lockfile changed
    │     (code review is skipped when subagent-driven-development's final review was clean,
    │      and always runs after a repair loop)
@@ -41,7 +41,7 @@ Phase 5  Finish & push          Opus verification
 | 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. Then shows you the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) and waits for your approval before Phase 2. Asking for changes regenerates the Seed; the skill never hand-edits it. | Interview completion; opt-in Seed refinement; Seed approval (approve, request changes or abandon) |
 | 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. | Design approval (bounded), spec approval then plan approval (architectural), or approval of the question and probe (spike, plus permission to leave plan mode if the answer needs a throwaway build). A Seed gap the audit finds goes to you and blocks presenting |
 | 3 | Creates a worktree (skipped outside a git repo) and implements with TDD. Multi-task plans run through `superpowers:subagent-driven-development`, one implementer at a time. Bounded changes run inline. | Confirm `/fast` is off; stop-and-ask triggers |
-| 4 | Runs the project's real test command, grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean (a review always runs after a repair loop). Runs the ecosystem's dependency audit when the diff changes a manifest or lockfile. Every check that applies must pass; one that can't run needs your explicit OK to skip. | A REVISE or FAIL verdict is reported to you, never auto-retried; a check that can't run (dependency audit, missing `pr-review-toolkit`) needs your explicit OK to skip |
+| 4 | Runs the project's real test command, typecheck and lint command (when the project defines one; a project with none gets an advisory fallback that never gates), grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean (a review always runs after a repair loop). Runs the ecosystem's dependency audit when the diff changes a manifest or lockfile. Every check that applies must pass; one that can't run needs your explicit OK to skip. | A REVISE or FAIL verdict is reported to you, never auto-retried; a check that can't run (dependency audit, missing `pr-review-toolkit`) needs your explicit OK to skip |
 | 5 | Establishes a doc baseline first if the repo has none (unless Phase 2 skipped it), syncs `README.md` and `docs/` to the branch diff, re-verifies in an Opus subagent, then finishes the branch. | PR creation and push stay manual; if your instructions require an audit of instructional docs, its findings come to you before the doc updates are committed |
 
 ### The three paths in Phase 2
@@ -85,7 +85,7 @@ Three more rules apply. You may accept a REVISE verdict and proceed; the skill n
 - `~/.ouroboros/config.yaml` with `models.pin: true` and `llm.qa_model: opus`, so `ouroboros_qa` runs on Opus. Without it QA runs on Sonnet, and the skill tells you before the Seed check.
 - `/fast` off during Phase 3. It forces Opus and breaks the `opusplan` routing.
 
-Context7 is used for library lookups in Phases 2 and 3. Phase 0 doesn't check for it, but the skill expects it and tells the model not to rely on trained knowledge alone.
+Context7 is used for library lookups in Phases 2 and 3. Phase 0 checks that its tools load and warns without stopping if they don't. The skill tells the model not to rely on trained knowledge alone, and finds the tools by search because their prefix varies by install.
 
 ---
 
@@ -135,7 +135,7 @@ development-workflow/
   README.md     This file
   SKILL.md      The skill definition and source of truth for phase order, gates and state tracking
   references/   Detail loaded on demand from named phases
-  evals/        evals.json (31 authored prompts with expectations) and files/build-fixtures.sh
+  evals/        evals.json (38 authored prompts with expectations) and files/build-fixtures.sh
   DESIGN.md     Dated design decisions and audit history
 ```
 
@@ -146,13 +146,13 @@ development-workflow/
 | [`reviewer-brief.md`](references/reviewer-brief.md) | Phase 2 design and security audits, Phase 4 code review |
 | [`doc-baseline.md`](references/doc-baseline.md) | Phase 2 plan check and the Phase 5 backstop |
 | [`phase3-execution.md`](references/phase3-execution.md) | Phase 3, worktree mechanics and implementer briefs |
-| [`phase4-qa.md`](references/phase4-qa.md) | Phase 4, the `ouroboros_qa` call, model policy and dependency audit |
+| [`phase4-qa.md`](references/phase4-qa.md) | Phase 4, the `ouroboros_qa` call, model policy, lint and dependency audit |
 | [`run-lifecycle.md`](references/run-lifecycle.md) | Phase 0 run creation and Seed hashing |
 | [`engineering-defaults.md`](references/engineering-defaults.md) | Phase 1 stack questions, and the Phase 2-3 Context7 lookups |
 
 ## Evals
 
-`evals/evals.json` holds 31 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
+`evals/evals.json` holds 38 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
 
 ```bash
 bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed]
