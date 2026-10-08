@@ -39,9 +39,9 @@ Phase 5  Finish & push          Opus verification
 |---|---|---|
 | 0 | Classifies the request (multi-file change, ambiguous requirements, or infrastructure work is in scope). Checks that `opusplan` is in effect and that `ouroboros_interview`, `ouroboros_generate_seed` and `ouroboros_qa` load. A resume at Phase 2 or later needs only `ouroboros_qa`. Creates nothing until all checks pass. Out-of-scope work, such as a typo fix, gets your call: the skill explains how it classified the request and offers to run the pipeline anyway, or makes the change directly. Nothing is created unless you opt in. | Confirm the model setting if the config files can't settle it; opt in to running out-of-scope work |
 | 1 | Skips the interview when goal, constraints and success criteria are already stated; otherwise runs `ouroboros_interview`. Generates a Seed and saves it to `seed.yaml`. Grades the Seed with `ouroboros_qa` as an advisory check. Then shows you the Seed (goal, acceptance criteria, constraints, QA verdict, open questions) and waits for your approval before Phase 2. Asking for changes regenerates the Seed; the skill never hand-edits it. | Interview completion; opt-in Seed refinement; Seed approval (approve, request changes or abandon) |
-| 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. | Design approval (bounded), spec approval then plan approval (architectural), or approval of the question and probe (spike, plus permission to leave plan mode if the answer needs a throwaway build). A Seed gap the audit finds goes to you and blocks presenting |
+| 2 | Hands the Seed to `superpowers:brainstorming` and follows its classification. A separate Opus reviewer audits Seed, design and plan against each other and the repo before you see them. A security reviewer runs too when the design touches auth or a public network surface. Each document opens with an executive summary and is handed to you to open in your default app (`design.md` or `plan.md`, via a pasteable `! xdg-open` line, since plan mode blocks the agent from opening it). If you edit it before answering, the edit is diffed and re-audited. | Design approval (bounded), spec approval then plan approval (architectural), or approval of the question and probe (spike, plus permission to leave plan mode if the answer needs a throwaway build). A Seed gap the audit finds goes to you and blocks presenting |
 | 3 | Creates a worktree (skipped outside a git repo) and implements with TDD. Multi-task plans run through `superpowers:subagent-driven-development`, one implementer at a time. Bounded changes run inline. | Confirm `/fast` is off; stop-and-ask triggers |
-| 4 | Runs the project's real test command, typecheck and lint command (when the project defines one; a project with none gets an advisory fallback that never gates), grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean (a review always runs after a repair loop). Runs the ecosystem's dependency audit when the diff changes a manifest or lockfile. Every check that applies must pass; one that can't run needs your explicit OK to skip. | A REVISE or FAIL verdict is reported to you, never auto-retried; a check that can't run (dependency audit, missing `pr-review-toolkit`) needs your explicit OK to skip |
+| 4 | Runs the project's real test command, typecheck and lint command (when the project defines one; a project with none gets an advisory fallback that never gates), grades the diff against the Seed with `ouroboros_qa`, and dispatches a reviewer to run `pr-review-toolkit:review-pr`, unless `subagent-driven-development`'s final whole-branch review already came back clean (a review always runs after a repair loop). Runs the ecosystem's dependency audit when the diff changes a manifest or lockfile. Every check that applies must pass; one that can't run needs your explicit OK to skip. Once they pass, it writes `summary.md` (an executive summary of the run so far) in the run directory and opens it in your default app. | A REVISE or FAIL verdict is reported to you, never auto-retried; a check that can't run (dependency audit, missing `pr-review-toolkit`) needs your explicit OK to skip |
 | 5 | Establishes a doc baseline first if the repo has none (unless Phase 2 skipped it), syncs `README.md` and `docs/` to the branch diff, re-verifies in an Opus subagent, then finishes the branch. | PR creation and push stay manual; if your instructions require an audit of instructional docs, its findings come to you before the doc updates are committed |
 
 ### The three paths in Phase 2
@@ -135,7 +135,7 @@ development-workflow/
   README.md     This file
   SKILL.md      The skill definition and source of truth for phase order, gates and state tracking
   references/   Detail loaded on demand from named phases
-  evals/        evals.json (40 authored prompts with expectations) and files/build-fixtures.sh
+  evals/        evals.json (46 authored prompts with expectations) and files/build-fixtures.sh
   DESIGN.md     Dated design decisions and audit history
 ```
 
@@ -144,6 +144,8 @@ development-workflow/
 | [`seed-generation-edge-cases.md`](references/seed-generation-edge-cases.md) | Phase 1, before calling `ouroboros_generate_seed` and again if it refuses |
 | [`seed-qa-refinement.md`](references/seed-qa-refinement.md) | Phase 1→2, Seed QA and the opt-in refinement pass |
 | [`reviewer-brief.md`](references/reviewer-brief.md) | Phase 2 design and security audits, Phase 4 code review |
+| [`review-documents.md`](references/review-documents.md) | Phase 2 approval gates: executive summary in the file, opening it, detecting edits |
+| [`run-summary.md`](references/run-summary.md) | End of Phase 4: the run summary template, sources and open commands |
 | [`doc-baseline.md`](references/doc-baseline.md) | Phase 2 plan check and the Phase 5 backstop |
 | [`phase3-execution.md`](references/phase3-execution.md) | Phase 3, worktree mechanics and implementer briefs |
 | [`phase4-qa.md`](references/phase4-qa.md) | Phase 4, the `ouroboros_qa` call, model policy, lint and dependency audit |
@@ -152,10 +154,10 @@ development-workflow/
 
 ## Evals
 
-`evals/evals.json` holds 40 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
+`evals/evals.json` holds 46 authored prompts with expectations. Nothing runs them automatically. Build a sandbox for them with:
 
 ```bash
-bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed]
+bash development-workflow/evals/files/build-fixtures.sh <dest> [--with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed | --edited-plan | --legacy-presented]
 ```
 
 The script creates a small `billing-app` git repo plus an empty `dev-workflow-runs/` directory, then the flag seeds one scenario:
@@ -166,6 +168,8 @@ The script creates a small `billing-app` git repo plus an empty `dev-workflow-ru
 - `--at-phase2-design`: an architectural-path run whose drafted `design.md` is deliberately insecure (an IDOR on `exportId`, exception messages returned to callers), to exercise the security review.
 - `--seed-mismatch`: a phase 2 run whose `seed.yaml` was edited after approval, so it no longer matches `seed_approved_hash`.
 - `--legacy-seed`: a phase 2 run from before the Seed approval gate, with no `seed_approved` step.
+- `--edited-plan`: a phase 2 run at the plan approval gate whose `plan.md` was edited after it was presented, so it no longer matches `plan_presented_hash`.
+- `--legacy-presented`: a phase 2 run at the spec gate whose design was audited and presented before presented hashes existed, so it has `design_audit` but no `design_presented_hash`.
 
 ## Editing this skill
 

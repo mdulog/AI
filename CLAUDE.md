@@ -32,7 +32,7 @@ python scripts/smoke_grade.py --baseline ./kb-baseline/docs --new ./kb-new/docs
 # Optional pre-push docs hook, installed per clone
 bash scripts/install-hooks.sh
 
-# development-workflow eval sandbox (flags: --with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed)
+# development-workflow eval sandbox (flags: --with-resume | --empty | --at-phase4 | --at-phase2-design | --seed-mismatch | --legacy-seed | --edited-plan | --legacy-presented)
 bash development-workflow/evals/files/build-fixtures.sh <dest> [flag]
 ```
 
@@ -55,7 +55,7 @@ bash development-workflow/evals/files/build-fixtures.sh <dest> [flag]
 **`development-workflow/`**
 - `README.md` — User-facing overview: pipeline diagram, gates, model split, requirements, install, eval sandbox.
 - `SKILL.md` — The skill definition: Phases 0–5, state tracking, artifact storage. Source of truth.
-- `references/*.md` — Detail loaded on demand from named phases (Phase 3 execution and worktree mechanics, Phase 4 QA call, reviewer brief and controller handling, Seed edge cases, Seed QA refinement, doc baseline and Phase 5 backstop, run lifecycle details, engineering defaults).
+- `references/*.md` — Detail loaded on demand from named phases (Phase 3 execution and worktree mechanics, Phase 4 QA call, reviewer brief and controller handling, Seed edge cases, Seed QA refinement, doc baseline and Phase 5 backstop, run lifecycle details, review documents, run summary, engineering defaults).
 - `DESIGN.md` — Dated design decisions and audit history. Not installed.
 - `evals/` — `evals.json` (test prompts with expectations) and fixtures. Not installed.
 

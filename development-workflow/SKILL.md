@@ -239,13 +239,18 @@ Run these in order.
     `references/reviewer-brief.md`: fix or flag every Critical and Important
     finding before presenting, a Seed gap goes to the human and blocks
     presenting, and re-run mode C once after a Critical fix.
-  - Lead the presentation with a 3-5 sentence executive summary (what will
-    change, why, the main trade-off or risk). On a resumed turn, at most two
-    short status sentences may come before it; the summary comes before the
-    audit result and the list of fixes. Then give the audit (the
-    traceability table in brief, the severity counts, what you fixed or
-    flagged) and the detail. Everything reflects the audit-corrected content,
-    not the draft.
+  - Put a 3-5 sentence executive summary (what will change, why, the main
+    trade-off or risk) at the top of the file, under `design.md`'s H1 and after
+    `plan.md`'s header block. Draft it with the document, before dispatching the
+    audit, so the audit can check it, and refresh it once the fixes are written.
+    Read `references/review-documents.md`: it snapshots the file, records its
+    hash, and hands it to the human to open in their default app. Then lead the chat
+    presentation with the same summary. On a resumed turn, at most two short
+    status sentences may come before it; the summary comes before the audit
+    result and the list of fixes. Then give the audit (the traceability table
+    in brief, the severity counts, what you fixed or flagged), the file path
+    and the detail. Everything reflects the audit-corrected content, not the
+    draft.
 - If the design depends on an unfamiliar library's runtime behavior (not
   just its documented API), name the highest-risk integration point in the
   design and make a real spike — install the dependency and run one real
@@ -257,6 +262,12 @@ Run these in order.
 - Hard gate on the bounded and architectural paths — do not proceed to Phase 3
   without explicit human approval (design approval for bounded; spec approval
   then plan approval for architectural — two sequential approvals, not one).
+  The human may have edited the file since it was presented; when a presented
+  hash is recorded, approval counts only if the file still matches it, and
+  otherwise the edit flow in `references/review-documents.md` runs first. That
+  comparison runs first on every turn at a gate. A missing hash is not approval
+  to skip the audit: a document no audit has covered gets audited and presented
+  first.
   Call `ExitPlanMode` once that approval is granted, on **either** of those
   paths — this returns to
   the prior permission mode and is what actually allows Phase 3's
@@ -273,7 +284,8 @@ Run these in order.
   review, because the reviewers read the file. That includes the bounded
   path's in-chat design: write it as a draft, and update the file if approval
   changes it, so outside the Spike path `state.json` points at a real file once
-  these writes have gone through. If plan mode refuses a write (this can hit `seed.yaml`, `state.json`
+  these writes have gone through. Each file carries an `## Executive summary`
+  (see the audit bullet above). If plan mode refuses a write (this can hit `seed.yaml`, `state.json`
   and `plan.md` as well as `design.md`), pass the Seed, the design and the
   plan inline to the reviewer instead; mode C then skips the hash comparison
   and says so. Defer the `state.json` writes (`seed_hash`, `design_audit`) and
@@ -444,7 +456,9 @@ Run these in order.
   doing anything else — see Seed versioning below, and the Model policy if
   the call is ambiguous:
   - Implementation wrong, Seed still valid → normal repair, back to Phase 3, no
-    Seed change, no invalidation. Repair is targeted: one fix subagent (on
+    Seed change, no invalidation. Set `phase` to 3 in `state.json` when you
+    route the repair, before the `/fast` confirmation: a resume then lands in
+    Phase 3, whose first step asks it again. Repair is targeted: one fix subagent (on
     `model: sonnet`) or an inline TDD cycle scoped to the finding. Its report says whether the fix
     addresses the root cause or masks a symptom; a symptom fix is recorded as
     technical debt and shown to the human. Don't re-invoke
@@ -455,6 +469,23 @@ Run these in order.
   - Seed wrong → this is a Seed revision. Apply the Seed-versioning invalidation
     rule: regenerate the Seed through Phase 1, then return to Phase 2, not
     Phase 3.
+
+- **Results ledger.** As each Phase 4 result lands (verification output, QA
+  verdict, review findings, audit, and any human deferral, ruling or accepted
+  skip), record it in `phase4-results.json` in the run directory, so the run
+  summary can be rebuilt after a resume. `references/run-summary.md` has the
+  shape.
+- **Run summary** (fires once every gate above has passed or been skipped with
+  the human's explicit acceptance, `ouroboros_qa` is PASS or an accepted REVISE,
+  and no Critical, Important or reviewer-recommended Minor finding is
+  unresolved; before Phase 5). Write `summary.md` in the run directory: an
+  executive summary of the whole run from the first request to the validated
+  branch, built from files (`state.json`, the Seed, the design and plan, the
+  branch diff and `phase4-results.json`), then open it with the OS default app
+  and continue to Phase 5 in the same turn. Phase 5 hasn't run, so the summary
+  says it doesn't cover doc-sync or the finish. A later Phase 4 pass overwrites
+  it. It never gates. Read `references/run-summary.md` for the template, the
+  sources and the open commands. Spike runs and abandoned runs get none.
 
 ## Phase 5 — Finish & push
 
@@ -520,8 +551,9 @@ Run these three steps in this order.
   trigger: mid-brainstorming discovery, a Phase 4 QA rejection traced to the
   Seed, or an opted-in Seed refinement pass (see the Seed QA rule in
   Phase 1) — invalidates every spec and plan derived from the prior version.
-- On any Seed revision: return to Phase 2, re-run brainstorming with the updated
-  Seed as context, and require a fresh design/plan approval before Phase 3
+- On any Seed revision: clear `design_presented_hash` and `plan_presented_hash`
+  (the snapshots they describe are stale), return to Phase 2, re-run
+  brainstorming with the updated Seed as context, and require a fresh design/plan approval before Phase 3
   resumes or continues. Never silently carry a stale spec or plan forward.
 - A revised Seed also needs fresh approval at the Phase 1 Seed approval gate:
   `seed_approved_hash` must equal the current Seed's hash before Phase 2 starts.
@@ -580,17 +612,25 @@ Run these three steps in this order.
   - Record `path` (`bounded`, `architectural` or `spike`) as soon as
     brainstorming classifies the work. A resumed Phase 2 needs it, together
     with `design_drafted` and `design_approved`, to know which approval gate
-    comes next.
+    comes next. Judge them by order, counting only those after the last
+    `seed_approved`.
   - Append to `steps_completed` as each step finishes (for example
-    `seed_generated`, `seed_qa: REVISE`, `seed_approved`, `design_drafted`, `design_audit`,
-    `design_approved`, `plan_approved`, `qa_on_diff`), so a
-    resumed run knows what already ran.
+    `seed_generated`, `seed_qa: REVISE`, `seed_approved`, `design_drafted`, `design_audit`, `plan_drafted`,
+    `design_approved`, `plan_approved`, `qa_on_diff`, `run_summary`), so a
+    resumed run knows what already ran. Append `design_drafted` or
+    `plan_drafted` every time that document is drafted or redrafted, a Seed
+    revision included: the gate rules judge "audited" by `design_audit` coming
+    after the latest one.
   - Store paths as full forward-slash paths that both your shell and git
     accept, never 8.3 short names.
   - Record the worktree path when Phase 3 creates one. It can go stale after
     finishing cleans up, so check the path exists before reusing it.
   - Record the `seed_hash` next to `design.md` and `plan.md` when each is
     persisted.
+  - Record `design_presented_hash` or `plan_presented_hash` when a document is
+    snapshotted for review (see `references/review-documents.md`). Absent means
+    no edit detection once that gate's audit has run; it doesn't excuse an
+    unaudited document. A Seed revision clears both fields.
   - Record `seed_approved_hash` (top-level) and append `seed_approved` when the
     human approves the Seed at the Phase 1 gate. `steps_completed` is
     append-only, so judge approval by `seed_approved_hash` equalling the current
@@ -628,14 +668,18 @@ Run these three steps in this order.
   basename outside a repo, or
   `no-repo` if even that isn't meaningful. This fallback keeps the pipeline
   working outside a git repo entirely.
-- Four files live in the run directory (plus an optional `spike/` folder, see
-  Phase 2):
+- Four files live in the run directory, plus `design.presented.md` and
+  `plan.presented.md` (snapshots taken when a document is presented for review,
+  see Phase 2), `phase4-results.json` (the Phase 4 results ledger),
+  `summary.md` (the run summary written at the end of Phase 4)
+  and an optional `spike/` folder:
   - `seed.yaml` — the current Seed, persisted the moment Phase 1 produces or
     revises it.
   - `state.json` — current phase, `status` (`in_progress`, `complete`, or
     `abandoned`), `path` (`bounded`, `architectural` or `spike`),
     `steps_completed` (see State tracking), `seed_approved_hash`, worktree path (if one exists — see
-    Phase 3), and pointers to
+    Phase 3), `design_presented_hash` and `plan_presented_hash` (see State
+    tracking), and pointers to
     `design.md`/`plan.md` with the `seed_hash` each was built against.
   - `design.md` — brainstorming's spec, redirected here instead of its default
     `docs/superpowers/specs/` location.

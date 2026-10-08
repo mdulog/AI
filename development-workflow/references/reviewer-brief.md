@@ -195,6 +195,12 @@ the Seed, the design and the plan say about each other and about the repo:
    corrupts data is Critical. A stated failure behavior that swallows the
    error or returns a default value breaks the human's error-handling rule and
    is Important. Skip this item for a design with no such boundary.
+8. **Executive summary.** The controller drafts it before the audit. Each
+   document you were given opens with an `## Executive summary` (under the H1
+   for `design.md`; after the header block for `plan.md`, when it exists). A
+   missing summary is Important. A summary that disagrees with the body as it
+   stands (a different scope, task count or main risk) is Important. Your fixes
+   may change the body, so the controller refreshes the summary afterwards.
 
 Mark each finding that traces to the Seed rather than to the design or plan
 ("Seed gap"): a criterion that is ambiguous or contradicts another, or a
@@ -225,4 +231,11 @@ For the controller only: don't include this section in a reviewer's prompt. It s
   audit or from the security review, re-run mode C once on the changed
   documents. If findings remain after that, flag them to the human instead
   of looping.
+- A finding inside text the human edited after the document was presented
+  (see `references/review-documents.md`) goes to the human with your proposed
+  fix. Don't apply it on your own, and don't rewrite their wording to satisfy
+  the audit.
+- Text the controller wrote itself, such as the executive summary or a change it
+  applied after the document was presented, isn't human-edited: fix those
+  directly.
 - Record `design_audit` in `steps_completed` after each gate's audit.

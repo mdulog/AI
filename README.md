@@ -238,9 +238,9 @@ The skill is a `SKILL.md` plus on-demand `references/` that acts as a resumable 
 |---|---|
 | 0. Classify and preflight | Decides whether the work is in scope (multi-file change, ambiguous requirements, or infrastructure). It also checks that the model setting is `opusplan` and that the Ouroboros tools can be loaded, before creating anything. Out-of-scope work, such as a typo fix, gets your call: the skill explains how it classified the request and offers to run the pipeline anyway, or makes the change directly. Nothing is created unless you opt in. |
 | 1. Requirements → Seed | Interviews you if goal, constraints, and success criteria aren't all stated, then generates a Seed spec and asks you to approve it before Phase 2. Runs in plan mode. |
-| 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. Before you see the design or plan, a separate reviewer subagent audits the Seed, design and plan against each other and the repo (every acceptance criterion needs a design element and something that proves it). If the design touches auth or a public network surface, a separate reviewer subagent checks it for security risks before you see it. |
+| 2. Design review & plan | Runs `superpowers:brainstorming` with the Seed as context and follows its classification. Bounded work gets a short in-chat design and no plan. Architectural work gets a written plan. A spike gets an answer and no code to keep. Before you see the design or plan, a separate reviewer subagent audits the Seed, design and plan against each other and the repo (every acceptance criterion needs a design element and something that proves it). If the design touches auth or a public network surface, a separate reviewer subagent checks it for security risks before you see it. The design and plan each carry an executive summary and are handed to you to open in your default app for review. |
 | 3. Isolate & execute | Creates a git worktree for the branch (skipped outside a git repo), then implements with TDD on Sonnet. Multi-task architectural plans run through `superpowers:subagent-driven-development`, and bounded changes run inline. |
-| 4. Evaluate | Runs the project's real test command and typecheck (and its lint command, if it defines one), grades the diff against the Seed with `ouroboros_qa`, and dispatches a separate reviewer subagent to run `pr-review-toolkit:review-pr` on the branch diff, unless `subagent-driven-development`'s final review already came back clean (a review always runs after a repair loop). Runs a dependency audit when the diff changes a manifest or lockfile; a check that can't run (the audit, or a missing `pr-review-toolkit`) needs your explicit OK to skip. A REVISE or FAIL verdict is reported to you, never auto-retried. |
+| 4. Evaluate | Runs the project's real test command and typecheck (and its lint command, if it defines one), grades the diff against the Seed with `ouroboros_qa`, and dispatches a separate reviewer subagent to run `pr-review-toolkit:review-pr` on the branch diff, unless `subagent-driven-development`'s final review already came back clean (a review always runs after a repair loop). Runs a dependency audit when the diff changes a manifest or lockfile; a check that can't run (the audit, or a missing `pr-review-toolkit`) needs your explicit OK to skip. A REVISE or FAIL verdict is reported to you, never auto-retried. Once the checks pass, an executive summary of the run is written to `summary.md` in the run directory and opened in your default app. |
 | 5. Finish & push | Checks docs are in sync (and, if your instructions require it, audits every instructional file the branch changes and waits for your ruling on findings), verifies, then finishes the branch. |
 
 ## Requirements
@@ -280,9 +280,9 @@ development-workflow/
   SKILL.md      The skill (deploy to ~/.claude/skills/development-workflow/)
   references/   Detail that SKILL.md loads at the phase that needs it: seed generation
                 edge cases, Seed QA, doc baseline, Phase 3 execution, Phase 4 QA,
-                the reviewer subagent brief, run lifecycle details, and Context7
-                and stack defaults
-  evals/        evals.json (40 test prompts with expectations) and files/
+                the reviewer subagent brief, run lifecycle details, review documents,
+                the run summary, and Context7 and stack defaults
+  evals/        evals.json (46 test prompts with expectations) and files/
                 build-fixtures.sh for the sandboxes they run in
   DESIGN.md     Design rationale, audit history, and later changes
 ```

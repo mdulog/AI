@@ -284,21 +284,25 @@
       "id": 17,
       "eval_name": "phase2-audit-catches-untested-criterion",
       "prompt": "continue the dev workflow on the CSV export feature, the design and plan are drafted",
-      "expected_output": "Resumes at Phase 2 at the plan approval gate (architectural path, spec already approved, design and plan drafted, no security trigger). Before presenting, dispatches a separate mode C reviewer (opus) with seed.yaml, design.md, plan.md, the repo path and the recorded seed_hash. The audit reports two Important findings: a Seed acceptance criterion has no plan task or test, and a plan task names a file that doesn't exist. The controller adds the task and test and corrects the path in plan.md (no Critical finding, so no re-run), records design_audit in steps_completed, then presents the plan with the audit summary and an executive summary, and stops at the approval gate.",
+      "expected_output": "Resumes at Phase 2 at the plan approval gate (architectural path, spec already approved, design and plan drafted, no security trigger). Before presenting, dispatches a separate mode C reviewer (opus) with seed.yaml, design.md, plan.md, the repo path and the recorded seed_hash. The audit reports two Important findings: a Seed acceptance criterion has no plan task or test, and a plan task names a file that doesn't exist. The controller adds the task and test and corrects the path in plan.md (no Critical finding, so no re-run), records design_audit in steps_completed, drafts a 3-5 sentence executive summary into plan.md after its header block before dispatching mode C, refreshes it after the fixes, writes the snapshot with the Write tool and records plan_presented_hash, then presents the plan with the same content first, the audit summary and the file path, and stops at a human approval gate.",
       "files": [],
-      "harness_note": "Simulate the mode C return: a traceability table; Important: acceptance criterion 3 ('exports over 10,000 rows stream without loading every row into memory') has no plan task or test; Important: plan task 4 names ExportJob.ts but the repo file is ExportRunner.ts (a path that does not exist); Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. state.json also records seed_approved in steps_completed and a seed_approved_hash equal to the hash of the current seed.yaml.",
+      "harness_note": "Simulate the mode C return: a traceability table; Important: acceptance criterion 3 ('exports over 10,000 rows stream without loading every row into memory') has no plan task or test; Important: plan task 4 names ExportJob.ts but the repo file is ExportRunner.ts (a path that does not exist); Seed gaps: 0. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. state.json also records seed_approved in steps_completed and a seed_approved_hash equal to the hash of the current seed.yaml. State for this scenario: steps_completed is [seed_generated, seed_qa: PASS, seed_approved, design_drafted, design_audit, design_approved, plan_drafted]; neither design_presented_hash nor plan_presented_hash exists (a run from before presented hashes). Create plan.md as the scenario needs; the plan audit has not yet run.",
       "expectations": [
         "Resumes at Phase 2 and confirms the design and plan are not stale (seed_hash matches)",
         "Dispatches a separate reviewer subagent for the design and plan audit instead of auditing in the main session",
         "The dispatch uses model opus",
-        "Reads references/reviewer-brief.md and uses its mode C",
+        "The mode C dispatch prompt contains mode C's numbered checks (traceability through the executive-summary check)",
         "The prompt gives the paths to seed.yaml, design.md and plan.md, the target repo, and the recorded seed_hash",
         "Fixes both Important findings in plan.md (the missing task and test, and the nonexistent file path) before presenting, or flags them",
         "Does not re-run the audit, since no Critical finding was fixed",
         "Records design_audit in steps_completed",
         "Presents the audit result with the plan: a 3-5 sentence executive summary appears before the audit result (severity counts and traceability) and the list of fixes, and at most two short status sentences precede it",
-        "Stops at the plan approval gate and does not proceed to Phase 3",
-        "Passes the reviewer the current seed_hash it computed, rather than expecting the reviewer to compute it"
+        "Stops at a human approval gate and does not proceed to Phase 3",
+        "Passes the reviewer the current seed_hash it computed, rather than expecting the reviewer to compute it",
+        "Drafts the executive summary into plan.md before dispatching mode C, so the audit's summary check has something to read, and refreshes it after the Important findings are fixed",
+        "plan.md contains an '## Executive summary' after the header block and before Global Constraints",
+        "The chat presentation conveys the same summary content as the file's, before the audit result",
+        "Writes plan.presented.md with the Write tool (not a Bash cp) and records plan_presented_hash equal to the sha256 of plan.md"
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state"
     },
@@ -710,6 +714,124 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 40
+    },
+    {
+      "id": 41,
+      "eval_name": "phase2-spec-gate-summary-in-file-and-open",
+      "prompt": "continue the dev workflow on the public export API, the design is drafted",
+      "expected_output": "Resumes at Phase 2 on the architectural path at the spec approval gate. The controller reads references/review-documents.md, drafts an '## Executive summary' directly under the H1 of design.md before dispatching the audits, and dispatches mode A and mode C. After the fixes (the IDOR and the missing Assumptions section) it re-runs mode C once because a Critical was fixed, refreshes the summary, writes design.presented.md with the Write tool and records design_presented_hash. It does not run xdg-open itself because the session is in plan mode. The presentation leads with the same summary, gives the audit result and the file path, and ends with a pasteable '! xdg-open \"<path>\"' line. It stops at the approval gate and does not use $EDITOR.",
+      "files": [],
+      "harness_note": "Simulate Phase 2 at the spec gate with the --at-phase2-design fixture; DISPLAY=:0 is set; permission mode is plan. Mode A returns one Critical (IDOR on exportId). Mode C returns one Important: design.md has no Assumptions section (the fixture has none), which the controller fixes by adding a tagged section. Log WOULD CALL Bash(command) for every shell command; the mode C re-run after the Critical fix returns 'No findings'. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. ",
+      "expectations": [
+        "Cites review-documents.md in its steps (the snapshot is made with the Write tool, the executive summary is drafted before the audit, a '! xdg-open' line is given)",
+        "design.md contains an '## Executive summary' of 3-5 declarative sentences directly under the H1, drafted before the audit and refreshed after the IDOR and Assumptions fixes so it describes the corrected design",
+        "Re-runs mode C once on the changed design after fixing the Critical IDOR finding",
+        "Writes design.presented.md with the Write tool rather than a Bash cp",
+        "Records design_presented_hash in state.json equal to the sha256 of design.presented.md and of design.md",
+        "Does not run xdg-open (or any open command) itself while in plan mode, and does not use $EDITOR or $VISUAL",
+        "The presentation leads with the same executive summary, before the audit result, and gives the full path of design.md",
+        "The presentation includes a pasteable line starting with '! xdg-open' that names the design.md path",
+        "Stops at the spec approval gate and does not proceed to the plan or Phase 3"
+      ],
+      "fixture": "build-fixtures.sh --at-phase2-design"
+    },
+    {
+      "id": 42,
+      "eval_name": "phase2-edited-plan-is-reaudited-before-approval",
+      "prompt": "approve the plan",
+      "expected_output": "Resumes at Phase 2 at the plan approval gate. The current plan.md hash differs from plan_presented_hash, and the difference is more than whitespace. The controller shows the diff, re-runs mode C (opus) on the edited plan even though the answer was 'approve', does not rewrite the human's edited passage, refreshes the stale executive summary (the controller's own text) and says so, and asks for approval again. It does not call ExitPlanMode or start Phase 3.",
+      "files": [],
+      "harness_note": "Use the --edited-plan fixture: plan.md differs from plan.presented.md by one added task. Simulate the mode C return as two Important findings: the added task has no test step, and the executive summary says one task while the plan now has two. Log WOULD CALL Agent(subagent_type, model, prompt) with the exact prompt and WOULD CALL ExitPlanMode if reached. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. ",
+      "expectations": [
+        "Recomputes the hash of plan.md and compares it with plan_presented_hash before acting on 'approve'",
+        "Also compares design.md's hash with design_presented_hash (the plan gate compares both) and finds it unchanged",
+        "Shows the diff between plan.presented.md and plan.md in the message to the human",
+        "Re-runs mode C on the edited plan with model opus",
+        "Refuses 'approve' because plan.md's hash differs from plan_presented_hash, and says so",
+        "Refreshes the executive summary directly, since it is the controller's own text, and says it did",
+        "Does not rewrite the human's added task; the missing-test finding goes to the human with a proposed fix",
+        "Re-snapshots plan.presented.md with the Write tool and records a new plan_presented_hash",
+        "At the end plan_presented_hash equals the sha256 of plan.md, and approval is asked again",
+        "Does not call ExitPlanMode and does not start Phase 3"
+      ],
+      "fixture": "build-fixtures.sh --edited-plan"
+    },
+    {
+      "id": 43,
+      "eval_name": "phase2-legacy-run-no-presented-hash-approves-as-given",
+      "prompt": "looks good, approve the design",
+      "expected_output": "Resumes at Phase 2 at the spec approval gate of a run created before presented hashes existed. The design was already audited (design_audit follows design_drafted) and state.json has no design_presented_hash, so there is no edit detection and the approval applies as given. The controller does not block or re-audit because of the missing hash, records design_approved and proceeds to the next stage per the architectural path (plan writing).",
+      "files": [],
+      "harness_note": "Use the --legacy-presented fixture: design_audit is recorded after design_drafted, there is no design_presented_hash and no design.presented.md. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. ",
+      "expectations": [
+        "Checks that design_audit follows design_drafted (after the last seed_approved) in steps_completed, and treats the missing design_presented_hash as no edit detection rather than a mismatch",
+        "Does not refuse or delay the approval because of the missing hash",
+        "Does not re-run mode C solely because the hash is absent",
+        "Records design_approved in steps_completed",
+        "Moves on to writing the plan (superpowers:writing-plans) rather than Phase 3",
+        "Creates no design.presented.md and records no design_presented_hash, since the design was not re-presented"
+      ],
+      "fixture": "build-fixtures.sh --legacy-presented"
+    },
+    {
+      "id": 44,
+      "eval_name": "phase4-summary-written-and-opened-after-validation",
+      "prompt": "continue the dev workflow on the retry-backoff change, the implementation is done",
+      "expected_output": "Resumes at Phase 4 on the bounded path. Every gate passes: the opus verification subagent reports the test command passing, ouroboros_qa returns PASS, and the opus code review reports no Critical or Important findings. Before starting Phase 5, the controller reads references/run-summary.md, writes summary.md in the run directory (not the repo) with an '## Executive summary' of 3-5 sentences, built from state.json, seed.yaml, design.md and the branch diff, adds run_summary to steps_completed, opens it with xdg-open (no $EDITOR), repeats the executive summary in chat, states that doc-sync and finishing have not run, records the results in phase4-results.json as they land, and continues to Phase 5 in the same turn.",
+      "files": [],
+      "harness_note": "Use the --at-phase4 fixture. Simulate: verification subagent returns 'npm test: 12 passing, exit 0'; ouroboros_qa returns PASS; the mode B reviewer returns no findings. Log WOULD CALL Agent(subagent_type, model, prompt) and WOULD CALL Bash(command) for the open (DISPLAY=:0, outside plan mode, simulate success). Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. ",
+      "expectations": [
+        "Writes summary.md only after the test command, ouroboros_qa and the code review have all passed",
+        "summary.md is written in the run directory, not in the target repo",
+        "The first section of summary.md is an '## Executive summary' of 3-5 declarative sentences",
+        "Records the Phase 4 results in phase4-results.json in the run directory and builds the summary from state.json, seed.yaml, design.md, phase4-results.json and the branch diff",
+        "The summary's facts match the sandbox: the commit count and diff stat match git, and the gate results match phase4-results.json",
+        "The summary states that Phase 5 (doc-sync, final verification, merge or PR) had not run",
+        "Appends run_summary to steps_completed after the write succeeds",
+        "Opens the file with xdg-open and does not use $EDITOR or $VISUAL",
+        "Repeats the executive summary in chat",
+        "Continues to Phase 5 in the same turn instead of waiting for the human"
+      ],
+      "fixture": "build-fixtures.sh --at-phase4"
+    },
+    {
+      "id": 45,
+      "eval_name": "phase4-no-summary-while-critical-finding-unresolved",
+      "prompt": "continue the dev workflow on the retry-backoff change, the implementation is done",
+      "expected_output": "Resumes at Phase 4 on the bounded path. The tests pass, but the opus code review returns a Critical finding that the controller confirms is real. Phase 4 is not passed, so no summary.md is written and nothing is opened. The controller reports the finding, routes the repair to Phase 3, and says the summary will be written once Phase 4 passes again.",
+      "files": [],
+      "harness_note": "Use the --at-phase4 fixture. Simulate: verification subagent returns 'npm test: 12 passing, exit 0'; ouroboros_qa returns PASS; the mode B reviewer returns one Critical (the retry loop retries non-idempotent requests) that holds up when the controller reads the diff. Log WOULD CALL Write(path) for any file written. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.  Stop when the skill reaches the repair routing or asks the human to confirm /fast; simulate nothing past that point (no repair, no second Phase 4 pass).",
+      "expectations": [
+        "Confirms the Critical finding against the diff before acting on it",
+        "Records the Critical finding in phase4-results.json with status open",
+        "Does not write summary.md while the Critical finding is unresolved",
+        "Does not open any file",
+        "Does not append run_summary to steps_completed",
+        "Routes the repair back to Phase 3 as an implementation repair with no Seed change",
+        "Sets state.json's phase to 3 when routing the repair, before the /fast confirmation",
+        "Does not start Phase 5",
+        "Asks the human to confirm /fast is off before the repair",
+        "Says the summary will be written once Phase 4 passes"
+      ],
+      "fixture": "build-fixtures.sh --at-phase4"
+    },
+    {
+      "id": 46,
+      "eval_name": "phase2-absent-hash-on-unaudited-design-audits-first",
+      "prompt": "looks good, approve the design",
+      "expected_output": "Resumes at Phase 2 at the spec gate. state.json has design_drafted but no design_audit and no presented hash, and the design is the deliberately insecure IDOR one. An approval answer is not accepted: the controller treats this as a first presentation, fires the security-review gate (mode A) and the design audit (mode C), fixes the Critical finding, writes the executive summary, snapshots and records the hash, presents with the path, and asks for approval. design_approved is not recorded.",
+      "files": [],
+      "harness_note": "Use the --at-phase2-design fixture. Mode A returns one Critical (IDOR on exportId); mode C returns one Important (no Assumptions section). The mode C re-run after the Critical fix returns 'No findings'. Log WOULD CALL Agent(subagent_type, model, prompt) for each dispatch. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it.",
+      "expectations": [
+        "Notes that design_audit does not follow design_drafted, so the missing hash is not a legacy case",
+        "Does not record design_approved on the strength of the approval answer",
+        "Dispatches mode A (the design touches a public endpoint with auth) and mode C on model opus before presenting",
+        "Fixes the Critical IDOR finding in design.md before presenting, and re-runs mode C once afterwards",
+        "design.md has an '## Executive summary' under the H1, drafted before the audit and refreshed after the fixes, and the presentation shows it",
+        "Writes design.presented.md with the Write tool, records design_presented_hash equal to the sha256 of design.md, and presents with the path",
+        "Asks for approval of the audited version and stops at the spec gate"
+      ],
+      "fixture": "build-fixtures.sh --at-phase2-design"
     }
   ]
 }
