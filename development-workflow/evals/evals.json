@@ -677,6 +677,39 @@
       ],
       "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
       "id": 38
+    },
+    {
+      "eval_name": "phase2-mode-c-failure-handling",
+      "prompt": "run the dev workflow's Phase 2 on the nightly invoice-sync job: the Seed is approved, start the design",
+      "expected_output": "Resumes at Phase 2 on the bounded path. The mode C prompt includes the Failure handling item (what can fail, what triggers it, what the handler does). The drafted design adds a nightly job that calls a billing API and writes invoices, but says nothing about a billing outage or a partial write; the audit reports that as Important, and reports a second Important for a catch that returns an empty list. The controller fixes both in design.md before presenting and does not claim a re-audit, because no Critical was fixed.",
+      "files": [],
+      "harness_note": "Simulate Phase 2 entry with an approved Seed (seed_approved_hash equals the current seed.yaml hash). Log WOULD CALL Skill(...) and Agent(subagent_type, model, prompt) and print each prompt. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. Brainstorming returns a bounded draft with a scheduled job calling a billing API and a data-access method, with an Assumptions section, no mention of API failure or retries, and one line 'on error the job returns an empty list'. The mode C audit returns two Important findings (no failure behavior for the billing call or a partial write; the error path swallows the error) and no Critical.",
+      "expectations": [
+        "The mode C prompt asks the reviewer to check failure handling for each external call, consumer, scheduled job and input boundary",
+        "The mode C audit is dispatched on model: opus",
+        "Fixes both Important findings in design.md before presenting",
+        "Does not present the design while an Important finding is unfixed and unflagged",
+        "Does not claim a re-audit when only Important findings were fixed"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 39
+    },
+    {
+      "eval_name": "phase2-mode-c-skips-mode-a-but-keeps-observability",
+      "prompt": "run the dev workflow's Phase 2 on the new public /v1/reports endpoint: the Seed is approved, start the design",
+      "expected_output": "Resumes at Phase 2 on the architectural path at the spec approval. The design touches a public network surface, so the security-review gate fires and mode A is dispatched together with mode C. The controller tells the mode C reviewer that mode A runs at this gate. The mode C prompt tells it to skip every control in mode A's list but keep SOLID, the dependency justification check and observability. The mode C result flags the new report-generation queue consumer that names no metric or trace as Important, and does not repeat mode A's authorization finding.",
+      "files": [],
+      "harness_note": "Simulate Phase 2 entry with an approved Seed (seed_approved_hash equals the current seed.yaml hash). Log WOULD CALL Skill(...) and Agent(subagent_type, model, prompt) and print each prompt. Preflight stubs: ~/.claude/settings.json sets \"model\": \"opusplan\" (no project override, ANTHROPIC_MODEL unset); the ToolSearch select query for ouroboros_qa returns it. Path: architectural, spec gate (no plan.md yet). Brainstorming returns a design with a public endpoint and a queue consumer, an Assumptions section, no metrics or traces for the consumer, and no ownership check on report ids. Mode A returns one Critical (IDOR on report id). Mode C returns one Important (no metrics or traces for the consumer) and does not mention the IDOR.",
+      "expectations": [
+        "Dispatches mode A and mode C together, both on model: opus",
+        "Tells the mode C reviewer that mode A runs at this gate",
+        "Tells mode C to skip the controls mode A's list covers but keep SOLID, the dependency check and observability",
+        "Fixes the IDOR Critical and the missing-observability Important in design.md before presenting",
+        "Re-runs mode C once after the Critical fix",
+        "Does not ask mode C to re-audit authorization"
+      ],
+      "fixture": "simulation-only: no fixture builds this scenario yet; the harness_note supplies the state",
+      "id": 40
     }
   ]
 }

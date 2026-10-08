@@ -175,9 +175,10 @@ the Seed, the design and the plan say about each other and about the repo:
    blocking criteria in a way a reviewer would block a merge on (a nit stays
    a Suggestion). When the controller says mode A runs at this gate, or ran
    at the spec gate and the plan (if any) leaves the design's auth and
-   network surface unchanged, skip everything mode A's list covers (authentication,
-   authorization, input validation, secrets and logs, data exposure) and keep
-   SOLID and the dependency check, because mode A covers the rest in depth.
+   network surface unchanged, skip every control in mode A's list (read that list
+   instead of relying on a copy here) and keep SOLID, the dependency
+   justification check and observability, because mode A covers the rest in
+   depth.
    Otherwise this item covers them too, including the plan's own auth
    content.
 6. **Assumptions.** `design.md` has an Assumptions section, each entry tagged
@@ -185,6 +186,15 @@ the Seed, the design and the plan say about each other and about the repo:
    design visibly depends on that isn't listed, is Important. An untagged entry
    is a Suggestion. A [Guessing] that would change the approach should have been
    a question to the human, and is Important.
+
+7. **Failure handling.** For every new external call, queue consumer, scheduled
+   job and input boundary, the design (and the plan, when it exists) says what
+   can fail, what triggers it, and what the handler does: retry, surface to the
+   caller, or fail the job. A boundary with no stated failure behavior is
+   Important. A happy-path-only design for a component whose failure loses or
+   corrupts data is Critical. A stated failure behavior that swallows the
+   error or returns a default value breaks the human's error-handling rule and
+   is Important. Skip this item for a design with no such boundary.
 
 Mark each finding that traces to the Seed rather than to the design or plan
 ("Seed gap"): a criterion that is ambiguous or contradicts another, or a

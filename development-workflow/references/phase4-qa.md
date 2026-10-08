@@ -15,7 +15,7 @@ Loaded from `SKILL.md` (Phase 4, before calling `ouroboros_qa`). Section names b
   on `model: opus` (see `phase3-execution.md`).
   `ouroboros_qa` has no model parameter and, in Claude Code, ignores the
   session model — plan mode has no effect on it, including the Seed QA call
-  in Phase 1. Checked against Ouroboros 0.55.3: QA is a standard-tier role,
+  in Phase 1. Checked against Ouroboros 0.55.6 (a diff of `model_selection.py` from 0.55.3 shows no change to the `qa` role's resolution): QA is a standard-tier role,
   so with no config it resolves to the `sonnet` alias. Earlier versions
   (0.54.5) fell back to an Opus-pinned `evaluation.semantic_model`; that
   path no longer exists. QA runs on Opus because `~/.ouroboros/config.yaml`
